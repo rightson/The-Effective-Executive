@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Effective Executive</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <nav id="nav">
+    <span class="nav-brand">The Effective Executive</span>
+    <div class="nav-links">
+      <a href="#dashboard" class="nav-link" data-section="dashboard">Dashboard</a>
+      <a href="#time" class="nav-link" data-section="time">I. Time</a>
+      <a href="#contributions" class="nav-link" data-section="contributions">II. Contributions</a>
+      <a href="#strengths" class="nav-link" data-section="strengths">III. Strengths</a>
+      <a href="#priorities" class="nav-link" data-section="priorities">IV. Priorities</a>
+      <a href="#decisions" class="nav-link" data-section="decisions">V. Decisions</a>
+    </div>
+  </nav>
+
+  <main id="main"></main>
+
+  <div id="modal-overlay" class="hidden" role="dialog" aria-modal="true">
+    <div id="modal">
+      <button id="modal-close" aria-label="Close">&times;</button>
+      <div id="modal-content"></div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
