@@ -1,6 +1,6 @@
 # Change: multi-user-time-management
 
-**Status:** proposed
+**Status:** accepted
 **Owner:** rightson
 **Branch:** `claude/multi-user-time-management-JsFIn`
 

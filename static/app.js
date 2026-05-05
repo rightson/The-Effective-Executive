@@ -20,27 +20,35 @@ function fmtMins(m) {
 
 // ─── API ─────────────────────────────────────────────────────────────────────
 
+function getCookie(name) {
+  const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.$?*|{}()[\]\\\/+^]/g, '\\$&') + '=([^;]*)'));
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+async function apiFetch(path, opts = {}) {
+  const headers = Object.assign({}, opts.headers || {});
+  if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
+  const csrf = getCookie('ee_csrf');
+  if (csrf && opts.method && opts.method !== 'GET') headers['X-CSRF-Token'] = csrf;
+  const r = await fetch(path, Object.assign({ credentials: 'same-origin' }, opts, { headers }));
+  if (r.status === 401 && !path.startsWith('/api/auth/')) {
+    auth.requireLogin();
+    throw new Error('Not authenticated');
+  }
+  if (!r.ok) {
+    let msg = await r.text();
+    try { msg = JSON.parse(msg).detail || msg; } catch (_) {}
+    throw new Error(msg);
+  }
+  if (r.status === 204) return null;
+  return r.json();
+}
+
 const api = {
-  async get(path) {
-    const r = await fetch(path);
-    if (!r.ok) throw new Error(await r.text());
-    return r.json();
-  },
-  async post(path, body) {
-    const r = await fetch(path, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
-    if (!r.ok) throw new Error(await r.text());
-    return r.json();
-  },
-  async put(path, body) {
-    const r = await fetch(path, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
-    if (!r.ok) throw new Error(await r.text());
-    return r.json();
-  },
-  async del(path) {
-    const r = await fetch(path, { method: 'DELETE' });
-    if (!r.ok) throw new Error(await r.text());
-    return r.json();
-  },
+  get:  (p)    => apiFetch(p),
+  post: (p, b) => apiFetch(p, { method: 'POST',   body: JSON.stringify(b) }),
+  put:  (p, b) => apiFetch(p, { method: 'PUT',    body: JSON.stringify(b) }),
+  del:  (p)    => apiFetch(p, { method: 'DELETE' }),
 };
 
 // ─── Modal ───────────────────────────────────────────────────────────────────
@@ -59,25 +67,122 @@ document.getElementById('modal-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-overlay')) modal.hide();
 });
 
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
+const auth = {
+  user: null,
+  members: [],
+
+  async loadMe() {
+    try {
+      this.user = await api.get('/api/auth/me');
+      try { this.members = await api.get('/api/org/members'); } catch (_) { this.members = []; }
+      return this.user;
+    } catch (_) {
+      this.user = null;
+      return null;
+    }
+  },
+
+  requireLogin() {
+    this.user = null;
+    this.renderLogin();
+  },
+
+  renderNav() {
+    const el = document.getElementById('nav-user');
+    if (!el) return;
+    if (!this.user) { el.innerHTML = ''; return; }
+    el.innerHTML = `
+      <span class="nav-user-name">${esc(this.user.display_name || this.user.email)}</span>
+      <button class="btn btn-ghost btn-xs" id="nav-logout">Log out</button>`;
+    document.getElementById('nav-logout').onclick = async () => {
+      try { await api.post('/api/auth/logout', {}); } catch (_) {}
+      auth.user = null;
+      auth.renderLogin();
+    };
+  },
+
+  renderLogin(mode = 'login') {
+    document.getElementById('main').innerHTML = `
+      <div class="auth-wrap">
+        <div class="auth-card">
+          <div class="section-title">${mode === 'signup' ? 'Create account' : 'Log in'}</div>
+          <div class="section-subtitle">${mode === 'signup' ? 'Start your Drucker journal.' : 'Welcome back.'}</div>
+          <form id="auth-form">
+            <div class="form-grid cols-1">
+              ${mode === 'signup' ? `
+                <div class="form-group"><label>Display name</label>
+                  <input type="text" name="display_name" placeholder="optional" /></div>` : ''}
+              <div class="form-group"><label>Email</label>
+                <input type="email" name="email" required autocomplete="email" /></div>
+              <div class="form-group"><label>Password</label>
+                <input type="password" name="password" required minlength="8" autocomplete="${mode === 'signup' ? 'new-password' : 'current-password'}" /></div>
+            </div>
+            <div id="auth-error" class="callout callout-warning hidden"></div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-ghost" id="auth-toggle">${mode === 'signup' ? 'Have an account? Log in' : 'New here? Sign up'}</button>
+              <button type="submit" class="btn btn-primary">${mode === 'signup' ? 'Sign up' : 'Log in'}</button>
+            </div>
+          </form>
+        </div>
+      </div>`;
+    this.renderNav();
+    document.getElementById('auth-toggle').onclick = () => this.renderLogin(mode === 'signup' ? 'login' : 'signup');
+    document.getElementById('auth-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const body = { email: fd.get('email'), password: fd.get('password') };
+      if (mode === 'signup') body.display_name = fd.get('display_name') || '';
+      const errBox = document.getElementById('auth-error');
+      errBox.classList.add('hidden');
+      try {
+        await api.post(mode === 'signup' ? '/api/auth/signup' : '/api/auth/login', body);
+        await auth.loadMe();
+        auth.renderNav();
+        app.activate('dashboard');
+      } catch (err) {
+        errBox.textContent = err.message || 'Failed';
+        errBox.classList.remove('hidden');
+      }
+    };
+  },
+};
+
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
 let chartInstance = null;
 
 const dashboard = {
+  viewingUserId: null,
+
   async load() {
-    const d = await api.get('/api/dashboard');
+    const qs = this.viewingUserId && this.viewingUserId !== auth.user.id
+      ? `?user_id=${this.viewingUserId}` : '';
+    const d = await api.get('/api/dashboard' + qs);
     this.render(d);
   },
 
   render(d) {
     const warnClass = (n) => n > 0 ? '' : 'ok';
 
+    const picker = (auth.members && auth.members.length) ? `
+      <div class="dashboard-picker">
+        <label>Viewing</label>
+        <select id="dashboard-user">
+          <option value="">My dashboard</option>
+          ${auth.members.map(m => `<option value="${m.user_id}" ${this.viewingUserId === m.user_id ? 'selected' : ''}>${esc(m.display_name || m.email)} — ${esc(m.org_name)}</option>`).join('')}
+        </select>
+      </div>` : '';
+
+    const heading = d.is_self ? 'Dashboard' : `Dashboard — ${esc(d.user.display_name || d.user.email)}`;
     document.getElementById('main').innerHTML = `
       <div class="section-header">
         <div>
-          <div class="section-title">Dashboard</div>
-          <div class="section-subtitle">Drucker's five habits at a glance</div>
+          <div class="section-title">${heading}</div>
+          <div class="section-subtitle">Drucker's five habits at a glance${d.is_self ? '' : ' (read-only)'}</div>
         </div>
+        ${picker}
       </div>
 
       <div class="stats-grid">
@@ -123,6 +228,11 @@ const dashboard = {
 
     this.renderChart(d.time.by_category);
     this.renderActions(d);
+    const sel = document.getElementById('dashboard-user');
+    if (sel) sel.onchange = () => {
+      dashboard.viewingUserId = sel.value ? parseInt(sel.value) : null;
+      dashboard.load();
+    };
   },
 
   renderChart(by_cat) {
@@ -1100,13 +1210,17 @@ const app = {
     }
   },
 
-  init() {
+  async init() {
     document.querySelectorAll('.nav-link').forEach(a => {
       a.addEventListener('click', (e) => {
         e.preventDefault();
         this.navigate(a.dataset.section);
       });
     });
+
+    const user = await auth.loadMe();
+    auth.renderNav();
+    if (!user) { auth.renderLogin(); return; }
 
     const hash = (window.location.hash || '#dashboard').replace('#', '');
     this.activate(hash);
