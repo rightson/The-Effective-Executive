@@ -18,7 +18,6 @@ Single-user, no-auth, and SQLite each block this directly.
 2. Scope every existing endpoint to `current_user`. Add a minimal **org/membership** model so a manager can see (read-only) reports' aggregates.
 3. Replace SQLite with **Postgres**, add real migrations, and run the service as a multi-tenant deployable.
 4. Keep the API shape stable where possible — `user_id` is implicit from the session, not in the request body.
-5. Decide the runtime stack: keep FastAPI/SQLAlchemy or switch to Next.js + Drizzle ORM + Postgres. **Recommendation: stay on FastAPI, adopt Postgres + Alembic + a JS client only where needed.** See [design.md](design.md).
 
 ## What does NOT change
 - The methodology: the five modules, the diagnostic fields, the dashboard rollups.
