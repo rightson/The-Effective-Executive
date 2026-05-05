@@ -1,15 +1,6 @@
-# Capability: strengths
+# Capability: strengths (MODIFIED)
 
-## Purpose
-Register strengths (own and others') with evidence so work can be assigned to the shape of the person.
+## MODIFIED Requirements
 
-## Requirements
-
-### Requirement: Strength CRUD
-`GET/POST/PUT/DELETE /api/strengths` SHALL be exposed.
-
-### Requirement: Owner field
-Each strength SHALL carry an `owner` string (default `"self"`) so strengths of others can be tracked.
-
-### Requirement: Evidence field
-Each strength SHALL carry a free-text `evidence` field. The methodology requires evidence; the API does not enforce non-empty.
+### Requirement: User-scoped strengths
+Each strength SHALL carry `user_id` (NOT NULL, FK, indexed). All endpoints SHALL filter by `current_user.id`. The existing free-text `owner` field is unchanged — it still describes *whose* strength it is (self or another person), independent of *which account* recorded it.

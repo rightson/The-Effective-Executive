@@ -1,21 +1,21 @@
-# Capability: dashboard
+# Capability: dashboard (MODIFIED)
 
-## Purpose
-Roll the five modules into a single read-only view.
+## MODIFIED Requirements
 
-## Requirements
+### Requirement: Self dashboard
+`GET /api/dashboard` (no query params) SHALL return the rollup for `current_user`. Shape unchanged.
 
-### Requirement: Aggregate endpoint
-`GET /api/dashboard` SHALL return a JSON object with the keys `time`, `contributions`, `priorities`, `decisions`.
+## ADDED Requirements
 
-### Requirement: Time block
-`time` SHALL contain `total_hours` (rounded to 1 dp), `total_entries`, `undiagnosed`, `by_category`.
+### Requirement: Manager dashboard view
+`GET /api/dashboard?user_id=<id>` SHALL return the rollup for the target user iff the caller is a `manager` in an org the target also belongs to. Otherwise `403`.
 
-### Requirement: Contributions block
-`contributions` SHALL contain `total`, `planned`, `active`, `completed` counts.
+#### Scenario: Self via query param
+- **WHEN** `?user_id=<self.id>` is passed
+- **THEN** the response is identical to the no-param call.
 
-### Requirement: Priorities block
-`priorities` SHALL contain `total`, `active`, and `to_abandon` (active rows where `would_start_today is False`).
+### Requirement: Org members listing
+`GET /api/org/members` SHALL return the union of members in every org where the caller has `role=manager`, as `[{user_id, display_name, org_id}]`. Used by the SPA to populate the manager picker.
 
-### Requirement: Decisions block
-`decisions` SHALL contain `total`, `open`, `implemented` counts.
+## UNCHANGED
+- The four blocks (`time`, `contributions`, `priorities`, `decisions`) and their fields.

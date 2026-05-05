@@ -1,21 +1,12 @@
-# Capability: decisions
+# Capability: decisions (MODIFIED)
 
-## Purpose
-Record decisions in Drucker's five-step structure, surfacing dissent and the absence of an implementer.
+## MODIFIED Requirements
 
-## Requirements
+### Requirement: User-scoped decisions
+Each decision SHALL carry `user_id` (NOT NULL, FK, indexed) representing the recorder. All endpoints SHALL filter by `current_user.id`. The existing free-text `assignee` field is unchanged — multi-user does not (in v1) link `assignee` to a real account.
 
-### Requirement: Decision CRUD
-`GET/POST/PUT/DELETE /api/decisions` SHALL be exposed.
+## UNCHANGED
+- Five-step fields, `problem_type`, `has_dissent`, `status` lifecycle.
 
-### Requirement: Problem typing
-`problem_type` SHALL be one of `generic | unique`. Default: `generic`.
-
-### Requirement: Five-step fields
-Each row SHALL carry: `boundary_conditions`, `right_answer`, `compromise`, `assignee`, `feedback_mechanism` (all free text, default empty).
-
-### Requirement: Dissent flag
-Each row SHALL carry a boolean `has_dissent` (default `false`). The methodology says a decision with no dissent is probably wrong; the API only stores the flag.
-
-### Requirement: Status lifecycle
-`status` SHALL be one of `open | implemented | reviewed`. Default: `open`. `outcome` is filled at review time.
+## DEFERRED
+- Linking `assignee` to a `user_id`, and notifying that user, is a follow-up change.

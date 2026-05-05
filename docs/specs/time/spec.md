@@ -1,30 +1,18 @@
-# Capability: time
+# Capability: time (MODIFIED)
 
-## Purpose
-Log activity duration and force the three Drucker diagnostic questions, then surface consolidated-block usage.
+## MODIFIED Requirements
 
-## Requirements
+### Requirement: User-scoped time entries
+Every time-entry row SHALL carry `user_id` (NOT NULL, FK to `users.id`, indexed). All `GET/POST/PUT/DELETE /api/time-entries` and `GET /api/time-entries/analysis` requests SHALL be scoped to `current_user.id`.
 
-### Requirement: Time-entry CRUD
-The service SHALL expose `GET/POST/PUT/DELETE /api/time-entries`.
+#### Scenario: Cross-user read
+- **WHEN** user A requests `GET /api/time-entries/{id}` for an entry owned by user B
+- **THEN** the response is `404` (not `403` — we do not leak existence).
 
-#### Scenario: Create
-- **WHEN** `POST /api/time-entries` is called with `{activity, duration_minutes, category?, notes?}`
-- **THEN** a row is inserted with `timestamp = utcnow()` and `worth_doing/can_delegate/wastes_others = NULL` (undiagnosed).
+#### Scenario: Cross-user write
+- **WHEN** any write carries an explicit `user_id` in the body
+- **THEN** the field is ignored; the row is owned by `current_user`.
 
-### Requirement: Diagnostic fields
-Each entry SHALL carry the three nullable booleans `worth_doing`, `can_delegate`, `wastes_others`. `NULL` means undiagnosed.
-
-### Requirement: Categories
-`category` SHALL be one of `deep_work | meeting | admin | communication | waste | uncategorized`. Default: `uncategorized`.
-
-### Requirement: Analysis endpoint
-`GET /api/time-entries/analysis` SHALL return:
-- `total_minutes`
-- `by_category` map
-- `diagnosis.{total_diagnosed, worth_doing, can_delegate, wastes_others}` counts
-- `consolidated_minutes` — sum of duration for entries where `duration_minutes >= 90`
-
-#### Scenario: Empty
-- **WHEN** there are no entries
-- **THEN** all numeric fields are `0` and maps are `{}`.
+## UNCHANGED
+- The diagnostic fields, categories, and analysis math.
+- Consolidated-block threshold of 90 minutes.

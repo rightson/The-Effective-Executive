@@ -1,18 +1,9 @@
-# Capability: priorities
+# Capability: priorities (MODIFIED)
 
-## Purpose
-Score each priority against Drucker's four criteria and prompt systematic abandonment.
+## MODIFIED Requirements
 
-## Requirements
+### Requirement: User-scoped priorities
+Each priority SHALL carry `user_id` (NOT NULL, FK, indexed). All endpoints SHALL filter by `current_user.id`.
 
-### Requirement: Priority CRUD
-`GET/POST/PUT/DELETE /api/priorities` SHALL be exposed.
-
-### Requirement: Four-criteria scoring
-Each row SHALL carry the booleans `future_oriented`, `opportunity_not_problem`, `own_direction`, `high_meaning`. All default to `false`.
-
-### Requirement: Abandonment prompt
-Each row SHALL carry the nullable boolean `would_start_today`. `NULL` means not yet reviewed; `false` flags the row for abandonment.
-
-### Requirement: Status lifecycle
-`status` SHALL be one of `active | abandoned | done`. Default: `active`.
+## UNCHANGED
+- Four-criteria scoring, `would_start_today` semantics, `status` lifecycle.

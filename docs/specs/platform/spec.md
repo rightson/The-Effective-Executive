@@ -1,33 +1,21 @@
-# Capability: platform
+# Capability: platform (MODIFIED)
 
-## Purpose
-Run a local-first web service that exposes the five Drucker modules over HTTP and serves a single-page UI.
+## MODIFIED Requirements
 
-## Requirements
+### Requirement: Postgres persistence (was: SQLite persistence)
+The service SHALL persist all data in **Postgres** via SQLAlchemy 2.x. The connection string is read from `DATABASE_URL`. SQLite remains supported for local development only.
 
-### Requirement: Single-process FastAPI app
-The service SHALL be a single Python process started via `python3 main.py`, listening on `0.0.0.0:8000`.
+#### Scenario: Production start
+- **WHEN** `DATABASE_URL` points at Postgres
+- **THEN** the service connects on startup; missing migrations cause a hard fail with a clear message.
 
-#### Scenario: Start
-- **WHEN** the user runs `python3 main.py`
-- **THEN** uvicorn binds port 8000 and serves both `/api/*` and `/`.
+### Requirement: Alembic migrations (was: No migrations)
+Schema changes SHALL ship as Alembic migrations. `alembic upgrade head` is required before the app accepts traffic. Deleting the database is no longer the upgrade path.
 
-### Requirement: SQLite persistence
-The service SHALL persist all data in `effective_executive.db` (SQLite) in the working directory using SQLAlchemy 2.x.
+### Requirement: Authenticated API (was: Single user, no auth)
+All `/api/*` routes except `/api/auth/*` SHALL require an authenticated session. Unauthenticated requests receive `401`.
 
-#### Scenario: Schema
-- **WHEN** the process starts
-- **THEN** `Base.metadata.create_all` creates any missing tables.
-
-#### Scenario: No migrations
-- **WHEN** a model field changes incompatibly
-- **THEN** the operator must delete the database file; no migration tool ships with the service.
-
-### Requirement: Single user, no auth
-The service SHALL NOT authenticate requests. All data is owned by the local operator.
-
-### Requirement: SPA delivery
-The service SHALL serve `static/index.html` at `/` and mount `static/` at `/static`.
-
-### Requirement: OpenAPI
-The service SHALL expose interactive docs at `/docs` (FastAPI default).
+## UNCHANGED
+- Single-process FastAPI app on port 8000.
+- SPA delivery from `static/`.
+- OpenAPI at `/docs` (now requires login when called from a browser session, but stays public for tooling that passes a session token).
