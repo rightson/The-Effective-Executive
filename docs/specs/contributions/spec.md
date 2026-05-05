@@ -1,52 +1,72 @@
 # Capability: contributions
 
 ## Purpose
-Shift the user's attention from activity, responsibility, and effort toward outward contribution. A contribution is an observable result the organization or stakeholder needs, not a description of tasks performed.
+
+Force the user to define effectiveness as outward contribution rather than activity, effort, or role responsibility.
+
+## First Principles
+
+- The executive is accountable for results outside the self: customer value, organizational performance, standards, and people development.
+- Activity is not contribution unless it produces an observable state change.
+- Contribution must be defined before priority and time allocation can be rational.
+- A useful contribution commitment also names what will be reduced or stopped to create capacity.
+
+## Core User Actions
+
+1. Define the current contribution in observable outcome language.
+2. Classify the contribution layer: direct results, values, or talent.
+3. Compare expected outcome with actual outcome.
+4. Name work to stop, reduce, delegate, or lower in quality.
 
 ## Requirements
 
-### Requirement: User-scoped contributions
-Each contribution SHALL carry `user_id` (NOT NULL, FK, indexed). All endpoints SHALL filter by `current_user.id`.
+### Requirement: User-scoped contribution records
+Because contribution is part of the user's journal and accountability, each contribution SHALL belong to `current_user`.
 
-### Requirement: Contribution definition
-Each contribution record SHALL capture:
-- `activity`: the planned activity or commitment;
-- `expected_outcome`: the outward result expected before work starts;
+Each contribution SHALL include:
+- `activity`;
+- `expected_outcome`;
 - `layer`;
 - `status`;
-- `actual_outcome` after completion.
-
-`layer` SHALL be one of:
-- `direct_results`: delivery, revenue, quality, reliability, speed, cost, risk, or other direct organizational result;
-- `values`: standards, culture, decision quality, integrity, or operating norms;
-- `talent`: development of people and future capability.
-
-#### Scenario: Activity without contribution
-- **WHEN** a user creates a contribution with an empty or vague `expected_outcome`
-- **THEN** the UI SHOULD keep the record visibly incomplete and ask "what observable result should happen?"
-
-#### Scenario: Completion
-- **WHEN** a contribution is marked `completed`
-- **THEN** the user SHOULD record `actual_outcome` so expected and actual contribution can be compared.
+- `actual_outcome`.
 
 ### Requirement: Observable outcome standard
-The service SHOULD treat a contribution as clear only when the expected outcome names at least one stakeholder, state change, metric, decision, delivery, or capability that can be observed.
+Because vague intention cannot guide executive action, `expected_outcome` SHOULD name at least one stakeholder, metric, delivery, decision, risk reduction, standard, or capability change.
 
-Invalid examples include only-attitude language such as "be more proactive", "help the team", or "increase influence" with no result.
+#### Scenario: Activity without contribution
+- **WHEN** a user creates a contribution with empty or vague `expected_outcome`
+- **THEN** the UI SHOULD mark it incomplete and ask what observable result should happen.
 
-### Requirement: Contribution horizon
-The product SHOULD support a current contribution commitment for the next 6-18 months and connect weekly activities to that commitment.
+### Requirement: Contribution layers
+Because Drucker defines contribution more broadly than direct delivery, `layer` SHALL be one of:
 
-#### Scenario: No current contribution
+- `direct_results`: delivery, revenue, reliability, quality, speed, cost, or risk result;
+- `values`: standards, decision quality, integrity, culture, or operating norm;
+- `talent`: growth of people and future organizational capability.
+
+### Requirement: Current contribution horizon
+Because executives need a concrete result horizon, the product SHOULD support one or a few active contribution commitments for roughly the next 6-18 months.
+
+#### Scenario: Priorities without contribution
 - **WHEN** the user has active priorities but no active contribution
-- **THEN** the dashboard SHALL prompt the user to define the result those priorities are meant to serve.
+- **THEN** the dashboard SHALL prompt the user to define the result those priorities serve.
+
+### Requirement: Expected versus actual review
+Because effectiveness must be tested against reality, completing a contribution SHOULD require `actual_outcome` so the user can compare promise and result.
 
 ### Requirement: Stop-or-lower list
-Each contribution definition SHOULD identify work the user will stop, delegate, or lower in quality so the promised result has capacity.
+Because contribution requires capacity, each major contribution SHOULD ask what existing work will be stopped, delegated, reduced, or intentionally done at a lower standard.
 
-#### Scenario: New major contribution
-- **WHEN** a user creates a high-importance contribution
-- **THEN** the service SHOULD ask what existing work will be reduced.
+## Artifacts
 
-### Requirement: Status lifecycle
-Contribution status SHALL support at least `planned`, `active`, and `completed`. The service SHOULD make active contributions reviewable from the dashboard and SHOULD avoid encouraging more active commitments than the user can realistically support.
+- contribution definition;
+- active contribution list;
+- expected-versus-actual outcome review;
+- stop-or-lower list.
+
+## Non-Goals
+
+- storing job descriptions;
+- praising effort or attitude without outcome;
+- tracking every task as a contribution;
+- turning contribution into moral language instead of result language.

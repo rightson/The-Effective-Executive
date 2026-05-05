@@ -1,74 +1,89 @@
 # Capability: platform
 
 ## Purpose
-Provide the secure, opinionated runtime for a Drucker habit system. The platform SHALL make the effective-executive workflow easy to practice repeatedly while preserving clear user isolation and keeping the product from becoming a generic task manager.
+
+Provide the runtime and product boundaries for a Drucker habit system. The platform SHALL make the five-habit loop secure, repeatable, and hard to confuse with a generic task manager.
+
+## First Principles
+
+- Effectiveness is a practice system. The app must lead users back to repeated diagnostic actions, not passive record keeping.
+- The methodology is the product. Technical choices are subordinate to preserving the causal loop from time evidence to decision feedback.
+- Private reflection is required for honest diagnosis. Identity and visibility features must preserve ownership and limit access.
+- The system must produce artifacts that can be reviewed: inventories, definitions, maps, posteriorities, and decision records.
+
+## Core User Actions
+
+- Open the app and see the next Drucker review action.
+- Capture incomplete records quickly during work.
+- Return during review to complete diagnostics.
+- Trust that domain records are scoped to the authenticated user.
 
 ## Requirements
 
-### Requirement: Habit operating system
-The service SHALL frame all domain modules as one operating loop: time facts, contribution definition, strengths placement, priority concentration, and decision execution.
+### Requirement: Habit loop as the primary product shape
+Because the product is meant to train effectiveness rather than collect notes, the first authenticated surface SHALL show review state and next actions across the five habits.
 
 #### Scenario: First app load after login
 - **WHEN** a user opens the app
-- **THEN** the first screen SHALL show the dashboard review state and the next Drucker action, not an empty landing page or marketing page.
+- **THEN** the app SHALL show the dashboard review state before any marketing, landing, or generic task view.
 
-#### Scenario: Incomplete habit chain
-- **WHEN** records exist in later modules but upstream evidence is missing, such as active priorities with no current contribution definition
-- **THEN** the service SHOULD surface the upstream gap as a review prompt.
+### Requirement: Structured diagnostics over free-form notes
+Because Drucker's method depends on specific questions, each capability SHALL store required diagnostics in structured fields where possible. Free-text notes MAY add context but SHALL NOT replace required diagnostic answers.
 
-### Requirement: Structured records over free-form notes
-The service SHALL prefer structured fields, forced choices, and small review prompts over blank notes. Free-text fields MAY exist for context, but they SHALL NOT be the only place where a required Drucker diagnostic is stored.
+#### Scenario: Vague record
+- **WHEN** a user records a contribution, priority, or decision with only vague language
+- **THEN** the UI SHOULD prompt for an observable result, owner, metric, action, or review condition.
 
-#### Scenario: Vague outcome
-- **WHEN** a user records an expected outcome, priority, or decision using vague language only
-- **THEN** the UI SHOULD prompt for an observable result, owner, metric, or review condition before treating the record as complete.
+### Requirement: Progressive capture and later completion
+Because knowledge workers must record facts while work is happening, the system SHALL allow lightweight capture and later surface incomplete diagnostics in review.
 
-### Requirement: Weekly review mode
-The product SHALL support a weekly review flow that can be completed from the dashboard without visiting every module manually.
+#### Scenario: Fast capture
+- **WHEN** a user only knows an activity and duration
+- **THEN** the user can save a time entry and complete the Drucker diagnosis later.
 
-The review mode SHALL cover:
-- undiagnosed time entries;
-- eliminable, delegable, and other-wasting work;
-- the current contribution commitment;
-- active priority count and abandonment candidates;
-- strengths that should shape assignments;
-- open decisions missing owner, action, dissent, or feedback.
+### Requirement: Authenticated API
+Because reflection records are private by default, all `/api/*` routes except `/api/auth/*` SHALL require an authenticated session. Unauthenticated requests SHALL return `401`.
 
-### Requirement: Progressive capture
-The service SHALL allow fast capture before full reflection. Users MAY create lightweight records during the week, and the dashboard SHALL later collect incomplete diagnostics into a review queue.
+### Requirement: User-owned domain records
+Because user isolation is required for honest reflection, domain create and update requests SHALL derive ownership from `current_user`; clients SHALL NOT set ownership through request bodies.
 
-#### Scenario: Fast time capture
-- **WHEN** a user only knows the activity and duration
-- **THEN** they can save the entry and diagnose it later.
+#### Scenario: Explicit user override
+- **WHEN** a client sends `user_id` in a domain write request
+- **THEN** the service SHALL ignore it and write only to `current_user`.
 
-#### Scenario: Decision completion
-- **WHEN** a decision is marked implemented
-- **THEN** it SHOULD have an assignee and feedback mechanism; otherwise the UI SHOULD ask the user to complete those fields.
-
-### Requirement: Postgres persistence (was: SQLite persistence)
-The service SHALL persist all data in **Postgres** via SQLAlchemy 2.x. The connection string is read from `DATABASE_URL`. SQLite remains supported for local development only.
+### Requirement: Durable persistence
+Because habit evidence must survive review cycles and schema evolution, production persistence SHALL use Postgres through SQLAlchemy 2.x. SQLite MAY remain supported for local development.
 
 #### Scenario: Production start
 - **WHEN** `DATABASE_URL` points at Postgres
-- **THEN** the service connects on startup; missing migrations cause a hard fail with a clear message.
+- **THEN** the service connects on startup and requires migrations to be current before accepting traffic.
 
-### Requirement: Alembic migrations (was: No migrations)
-Schema changes SHALL ship as Alembic migrations. `alembic upgrade head` is required before the app accepts traffic. Deleting the database is no longer the upgrade path.
-
-### Requirement: Authenticated API (was: Single user, no auth)
-All `/api/*` routes except `/api/auth/*` SHALL require an authenticated session. Unauthenticated requests receive `401`.
-
-### Requirement: Stable domain API
-The API SHALL keep user ownership implicit. Domain create and update requests SHALL NOT require `user_id`; the authenticated session supplies ownership.
-
-#### Scenario: Explicit user override
-- **WHEN** a client sends `user_id` in a domain request body or query string for a write endpoint
-- **THEN** the service SHALL ignore it and write only to `current_user`.
+### Requirement: Schema migrations
+Because habit records are durable evidence, schema changes SHALL ship as Alembic migrations. Deleting the database SHALL NOT be the upgrade path.
 
 ### Requirement: Methodology boundary
-The service SHALL NOT optimize for task assignment, team chat, comments, or real-time collaboration unless those features directly support one of the five habits. Manager features SHALL remain coaching and review oriented, not surveillance oriented.
+Because generic collaboration features would dilute the practice loop, the service SHALL NOT add task assignment, chat, comments, or real-time collaboration unless they directly improve one of the five Drucker habits.
+
+## Artifacts
+
+- authenticated session;
+- user-scoped records;
+- migration history;
+- dashboard review state;
+- incomplete-diagnostic queue.
 
 ## Technical Shape
-- Single-process FastAPI app on port 8000.
-- SPA delivery from `static/`.
-- OpenAPI at `/docs` (now requires login when called from a browser session, but stays public for tooling that passes a session token).
+
+- FastAPI app on port 8000.
+- SQLAlchemy 2.x models.
+- Alembic migrations.
+- Postgres for durable persistence; SQLite for local development.
+- Static SPA served from `static/`.
+- OpenAPI at `/docs`.
+
+## Non-Goals
+
+- generic project management;
+- team chat or comments;
+- raw surveillance of another user's journal;
+- optimizing for feature parity with productivity tools.

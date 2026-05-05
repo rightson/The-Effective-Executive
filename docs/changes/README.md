@@ -1,26 +1,26 @@
 # Changes
 
-Change proposals describe why the current system should change and what must become true after the change is accepted.
+Change proposals describe why the current system must change and what will become possible after the change is accepted.
 
 ## First-Principles Rule
 
-Every change SHALL start from necessity, not solution preference. Before naming tables, endpoints, libraries, or UI controls, the proposal should make the causal argument visible:
+Every change SHALL start from necessity, not solution preference. Before naming tables, endpoints, libraries, or UI controls, the proposal SHALL make the causal argument visible:
 
-- Which Drucker habit or organizational result is currently blocked?
-- What user behavior is failing or too hard to repeat?
-- What first-principles constraint creates the need? Examples: time is non-storable, contribution must be outward and observable, people perform through strengths, attention must be concentrated, decisions are not real until assigned and checked.
+- Which Drucker habit or organizational result is blocked?
+- What user behavior is failing, inaccurate, or too hard to repeat?
+- What first-principles constraint creates the need? Examples: time is non-storable, contribution must be outward and observable, people perform through strengths, attention must be concentrated, decisions require action and feedback.
 - What goes wrong if nothing changes?
-- What artifact or signal will prove the change worked?
-- What remains out of scope to protect the product from becoming a generic task or collaboration system?
+- What artifact or dashboard signal will prove the change worked?
+- What remains out of scope to protect the product from becoming generic task, chat, or collaboration software?
 
-## Proposal Shape
+## Required Proposal Shape
 
-Good proposals use this order:
+1. **First-principles problem:** the constraint and failure mode.
+2. **Behavior change:** what the user or manager can now do.
+3. **System change:** the smallest product, data, API, or workflow change needed.
+4. **Boundaries:** what the change intentionally does not solve.
+5. **Acceptance:** observable scenarios proving the behavior is possible.
 
-1. **Why:** the current failure mode and first-principles constraint.
-2. **What changes:** the smallest product behavior and data/API changes needed to remove that failure mode.
-3. **What does not change:** boundaries that preserve the Drucker habit system.
-4. **Impact:** specs, migrations, API behavior, and user workflows affected.
-5. **Acceptance:** observable scenarios that prove the behavior is now possible.
+Design documents MAY discuss implementation only after the product necessity is clear.
 
-Design documents MAY discuss implementation, but only after the product necessity is clear.
+Tasks SHOULD remain traceable to the first-principles problem. A task that cannot be linked to a behavior or artifact is suspect.

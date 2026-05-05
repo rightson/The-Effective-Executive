@@ -1,24 +1,24 @@
 # The Effective Executive
 
-A local, single-user web service that turns Peter Drucker's five executive habits into structured records you can review.
+An authenticated web service that turns Peter Drucker's five effective-executive habits into structured records, weekly review actions, and dashboard signals.
 
-The service is opinionated: each module enforces the diagnostic Drucker prescribes for that habit, rather than giving you a free-form notes app. If a field exists, the book says you should be filling it in.
+The product is opinionated from first principles: effectiveness is not a personality trait, but a trainable practice. Each module exists only when it helps a knowledge worker convert scarce time, uneven strengths, and consequential judgment into observable organizational results.
 
-## The five modules
+## Operating loop
 
-Each maps to one of the habits in *The Effective Executive* (1967).
+The five modules form one Drucker operating loop:
 
-**Time** — log activities with duration. For every entry, answer the three diagnostic questions: is it worth doing at all, could someone else do it as well, does it waste other people's time. Analysis surfaces total minutes, breakdown by category, and how many minutes sit in **consolidated blocks** of 90+ minutes (Drucker's threshold for usable knowledge work).
+**Time** records actual work and forces diagnosis: should this be done at all, can it be delegated, and does it waste other people's time. The output is a time inventory, elimination list, delegation list, stop-wasting-others list, and 90-minute work-block signal.
 
-**Contributions** — every planned activity records the **expected outward outcome** before it starts, classified into one of the three layers: direct results, values, or talent development. An activity without a writeable expected outcome should not be done.
+**Contributions** defines the outward result the user is accountable for. The output is not a job description; it is an observable commitment across direct results, values and standards, or talent development.
 
-**Strengths** — register strengths (your own and others') with evidence. Used to assign work to the shape of the person, not patch their weaknesses.
+**Strengths** maps evidence-backed strengths for self and collaborators so work can be placed where performance is possible. Ordinary weaknesses are bounded by design; trust and integrity failures are not treated as style issues.
 
-**Priorities** — each priority is scored on Drucker's four criteria: future-oriented, opportunity over problem, own direction, high meaning. The **would_start_today** field is the systematic-abandonment prompt: if the answer is no, mark it for abandonment.
+**Priorities** concentrates attention on a few matters using Drucker's tests: future over past, opportunity over problem, own direction over pressure, and high meaning over easy wins. The output includes posteriorities: what is abandoned or deferred.
 
-**Decisions** — five-step decision record: problem type (generic vs. unique), boundary conditions, the right answer, the compromise, the assignee, the feedback mechanism, and a `has_dissent` flag (Drucker: a decision with no dissent is probably wrong).
+**Decisions** turns judgment into action: problem type, boundary conditions, right answer before compromise, dissent, assignee, feedback mechanism, and outcome.
 
-A `/api/dashboard` endpoint rolls these into one view, including how many priorities are flagged for abandonment and how many decisions still have no implementer.
+**Dashboard** exposes breaks in the loop and guides the weekly review. It is a diagnostic surface, not a productivity score.
 
 ## Specification discipline
 
@@ -60,7 +60,7 @@ Open http://localhost:8000 for the SPA (sign up on first visit) or http://localh
 
 ## Database
 
-By default the service writes to `effective_executive.db` (SQLite) in the working directory — fine for local single-user use. Set `DATABASE_URL` to use Postgres:
+By default the service writes to `effective_executive.db` (SQLite) in the working directory for local development. Set `DATABASE_URL` to use Postgres:
 
 ```
 docker compose up -d                                # bundled Postgres on :5432
@@ -71,7 +71,7 @@ python3 manage.py run
 
 Schema changes are managed with Alembic. `manage.py db upgrade head` brings any database to the current schema; the baseline migration is equivalent to `Base.metadata.create_all`.
 
-To migrate a legacy single-user `effective_executive.db` into a multi-user account, sign up first, then:
+To preserve an existing `effective_executive.db` under a user account, sign up first, then:
 
 ```
 python3 manage.py import-sqlite ./effective_executive.db you@example.com
@@ -90,11 +90,11 @@ Password auth (argon2) with session cookies. Sign-up is open; first user becomes
 
 State-changing requests must echo the `ee_csrf` cookie back in the `X-CSRF-Token` header. The bundled SPA does this automatically.
 
-## Multi-user / manager view
+## Accounts / coaching view
 
 Every domain row is scoped to `user_id`. Two users in the same Postgres see entirely separate journals.
 
-For team use, populate the `orgs` and `org_memberships` tables. A user with `role = 'manager'` in an org can:
+For bounded coaching visibility, populate the `orgs` and `org_memberships` tables. A user with `role = 'manager'` in an org can:
 
 - `GET /api/org/members` — list reports
 - `GET /api/dashboard?user_id=<report_id>` — read-only dashboard for a report
@@ -120,4 +120,4 @@ FastAPI · SQLAlchemy 2.x · Alembic · SQLite or Postgres · argon2 · vanilla 
 
 ## Scope
 
-Designed to be the structured journal Drucker describes — not a team productivity platform. The multi-user mode exists so a manager can see whether reports have undiagnosed time or unreviewed priorities, not to coordinate work.
+Designed to be the structured journal Drucker describes, not a team productivity platform. Accounts and manager views exist only to protect habit records and expose bounded coaching signals.

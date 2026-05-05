@@ -1,48 +1,75 @@
 # Capability: strengths
 
 ## Purpose
-Help the user design work around usable strengths instead of idealized, all-around competence. The module SHALL document evidence-backed strengths for the user and relevant collaborators, then use those strengths to shape priorities and decisions.
+
+Help the user place work where strengths can produce results and design around weaknesses that do not violate trust.
+
+## First Principles
+
+- No person is well rounded enough to be managed as an ideal role description.
+- Results come from using strengths, not from averaging out weaknesses.
+- Weaknesses can often be bounded by design, pairing, process, or role shape.
+- Failures of integrity, trust, or responsibility are not ordinary weaknesses and cannot be designed around.
+
+## Core User Actions
+
+1. Record strengths with observed performance evidence.
+2. Identify the work each strength is suitable for.
+3. Check whether important work is assigned to a matching strength.
+4. Define boundaries, partners, or process controls for non-fatal weaknesses.
 
 ## Requirements
 
-### Requirement: User-scoped strengths
-Each strength SHALL carry `user_id` (NOT NULL, FK, indexed). All endpoints SHALL filter by `current_user.id`. The existing free-text `owner` field is unchanged — it still describes *whose* strength it is (self or another person), independent of *which account* recorded it.
+### Requirement: User-scoped strengths map
+Because strengths records are part of a user's judgment system, each strength SHALL belong to `current_user` while `owner` describes the person whose strength is being recorded.
 
-### Requirement: Evidence-backed strength record
 Each strength SHALL include:
-- `owner`: the person or role whose strength is being recorded;
-- `name`: the strength;
-- `description`: where the strength is useful;
-- `evidence`: observed performance facts.
+- `owner`;
+- `name`;
+- `description`;
+- `evidence`;
+- `created_at`.
 
-#### Scenario: Unsupported claim
-- **WHEN** a strength has no evidence
-- **THEN** the UI SHOULD mark it as incomplete and ask for a concrete example of superior performance.
+### Requirement: Evidence-backed strengths
+Because strengths must be performance facts rather than compliments, the service SHOULD mark a strength incomplete when it has no evidence.
+
+#### Scenario: Unsupported strength
+- **WHEN** a strength has no `evidence`
+- **THEN** the UI SHOULD ask for a concrete example of unusually effective performance.
 
 ### Requirement: Work-fit guidance
-The service SHOULD help the user connect strengths to work. A strength is useful when it can be applied to a contribution, priority, or decision action.
+Because the purpose of a strength is contribution, the product SHOULD help connect strengths to active contributions, priorities, and decision actions.
 
-#### Scenario: Priority without strength fit
-- **WHEN** a high-priority item has no obvious person or strength fit
+#### Scenario: Important work without strength fit
+- **WHEN** a high-priority item has no clear owner strength
 - **THEN** the review flow SHOULD ask whether the work is assigned to the right person or needs a different design.
 
-### Requirement: Weakness boundary
-The module SHALL distinguish ordinary weaknesses from trust, integrity, or responsibility failures.
-
-Ordinary weaknesses SHOULD be handled through task design, pairing, process boundaries, or reduced exposure. Trust, integrity, and basic responsibility problems SHALL NOT be treated as configurable weaknesses.
-
 ### Requirement: Self-management facts
-For the current user, the service SHOULD capture effective work-mode facts such as:
-- thinking best through writing or conversation;
-- stronger at exploration or closure;
-- stronger at architecture, execution, operations, analysis, or communication;
-- required decision-analysis depth;
+Because the user is also a resource to be placed well, the product SHOULD capture facts about the user's effective work mode:
+
+- thinking through writing or conversation;
+- exploration versus closure;
+- architecture, execution, operations, analysis, or communication strength;
+- decision speed and analysis needs;
 - conditions that reliably produce high-quality work.
 
-These facts SHOULD be used by the dashboard when suggesting focus blocks or reviewing assignments.
+### Requirement: Weakness boundary
+Because ordinary weakness and trust failure require different responses, the product SHALL distinguish:
 
-### Requirement: Strengths map output
-The module SHALL produce a strengths map answering:
-- what each key person can do unusually well;
-- where current responsibilities use or waste those strengths;
-- which weaknesses require process, partner, or boundary controls.
+- ordinary weakness: managed through role design, pairing, checklist, process, or reduced exposure;
+- trust/integrity/responsibility failure: not treated as configurable.
+
+## Artifacts
+
+- strengths map;
+- evidence list;
+- work-fit review;
+- weakness boundary notes;
+- self-management profile.
+
+## Non-Goals
+
+- personality testing as an end in itself;
+- forcing everyone to become well rounded;
+- excusing trust or integrity failures as style differences;
+- ranking people by generic competency scores.

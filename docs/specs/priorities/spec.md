@@ -1,52 +1,83 @@
 # Capability: priorities
 
 ## Purpose
-Force concentration on a few important matters and make posteriorities explicit. The module SHALL help the user decide what to do first, what to delay, and what to abandon.
+
+Concentrate scarce time, attention, and strengths on a few matters that can produce significant results, while making posteriorities explicit.
+
+## First Principles
+
+- Concentration is required because important work cannot be done in leftover fragments.
+- Priority without explicit posteriority does not protect capacity.
+- Future opportunity matters more than past investment.
+- The user must choose direction rather than merely respond to pressure.
+
+## Core User Actions
+
+1. List active priorities.
+2. Evaluate each priority against Drucker's four criteria.
+3. Keep only a few active priorities.
+4. Review whether existing work would be started today.
+5. Abandon, defer, or redesign work that no longer deserves resources.
 
 ## Requirements
 
-### Requirement: User-scoped priorities
-Each priority SHALL carry `user_id` (NOT NULL, FK, indexed). All endpoints SHALL filter by `current_user.id`.
+### Requirement: User-scoped priority records
+Because priorities reflect the user's current resource allocation, each priority SHALL belong to `current_user`.
 
-### Requirement: Priority criteria
-Each priority SHALL be evaluated against Drucker's four concentration criteria:
-- `future_oriented`: future opportunity matters more than past investment;
+Each priority SHALL include:
+- `title`;
+- `description`;
+- `future_oriented`;
+- `opportunity_not_problem`;
+- `own_direction`;
+- `high_meaning`;
+- `would_start_today`;
+- `status`.
+
+### Requirement: Four concentration criteria
+Because Drucker's priority test is qualitative judgment, each criterion SHALL remain explicit rather than hidden inside a single score.
+
+The criteria are:
+- `future_oriented`: future opportunity matters more than sunk cost;
 - `opportunity_not_problem`: the item pursues opportunity, not only problem repair;
-- `own_direction`: the user is choosing direction instead of merely reacting to pressure;
-- `high_meaning`: success would materially change an important result.
+- `own_direction`: the user chooses direction instead of only reacting to pressure;
+- `high_meaning`: success materially changes an important result.
 
-The service SHALL preserve each criterion as an explicit boolean rather than compressing them into a single score.
-
-#### Scenario: Low-criteria priority
+#### Scenario: Weak priority
 - **WHEN** a priority satisfies fewer than two criteria
-- **THEN** the UI SHOULD ask whether it is maintenance work, a problem repair, or a candidate for deferral.
+- **THEN** the UI SHOULD ask whether it is maintenance, repair, deferrable work, or a candidate for abandonment.
 
 ### Requirement: Few active priorities
-The system SHOULD encourage no more than one to three active priorities at a time. It SHALL surface overload when too many active priorities compete for the same time and strengths.
+Because concentration is impossible with too many first-class commitments, the product SHOULD encourage one to three active priorities.
 
 #### Scenario: Too many active priorities
 - **WHEN** the user has more than three active priorities
-- **THEN** the dashboard SHALL prompt a portfolio review before suggesting new work.
+- **THEN** the dashboard SHALL prompt a portfolio review before encouraging new commitments.
 
 ### Requirement: Systematic abandonment
-Each priority SHALL support `would_start_today`, answering: if this were not already underway, would we choose to start it now?
+Because the past should not automatically command the future, each active priority SHALL support `would_start_today`.
 
 #### Scenario: Would not start today
 - **WHEN** `would_start_today` is `false` and status is `active`
 - **THEN** the priority SHALL appear as an abandonment candidate.
 
-#### Scenario: Abandonment review
-- **WHEN** an abandonment candidate is reviewed
-- **THEN** the user SHALL choose whether to keep, abandon, defer, or redesign it.
-
 ### Requirement: Posteriority list
-The module SHOULD maintain an explicit stop/defer list derived from abandoned priorities, time diagnosis, and new contribution commitments. A priority system without posteriorities SHALL be considered incomplete.
-
-### Requirement: Status lifecycle
-Priority status SHALL support at least `active`, `done`, and `abandoned`. The product SHOULD also support or emulate `deferred` for work intentionally postponed without pretending it remains active.
+Because capacity is created by deciding what not to do, abandoned or deferred priorities SHOULD produce an explicit posteriority list.
 
 ### Requirement: Capacity connection
-The service SHOULD connect priorities to time and strengths:
-- active priorities SHOULD have scheduled 90-minute work blocks where appropriate;
-- high-priority work SHOULD identify the person or strength that gives it the best chance of success;
-- priorities unrelated to current contribution SHOULD be flagged for review.
+Because a priority without time is only an intention, active priorities SHOULD be connected to consolidated time blocks and relevant strengths.
+
+## Artifacts
+
+- active priority list;
+- four-criteria review;
+- abandonment candidates;
+- posteriority list;
+- capacity check.
+
+## Non-Goals
+
+- unlimited P0 tasks;
+- task backlog management;
+- ranking by urgency alone;
+- rewarding easy low-value wins.

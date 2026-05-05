@@ -1,24 +1,40 @@
-# Design: multi-tenancy
+# Design: owned habit records
 
-## 1. Runtime stack
+## Product Necessity
 
-The service uses the existing FastAPI application with SQLAlchemy 2.x, Alembic migrations, password authentication, and Postgres for deployable multi-user persistence. The static SPA remains served from `/static/`.
+The design exists to preserve three Drucker requirements:
 
-This design keeps the Drucker domain logic in the current backend and treats multi-user support as an incremental platform change: add accounts, sessions, org memberships, user-scoped rows, and manager read-only rollups.
+- actual time, contribution, strengths, priorities, and decisions must be attributable to the person practicing the habit;
+- each user's journal must remain private enough for honest diagnosis;
+- managers may receive limited aggregate signals to coach effectiveness habits without owning another person's records.
 
-## 2. Multi-tenancy model
+## Runtime Shape
 
-- **Tenant unit:** `user`. An `org` exists only to scope read-only manager views.
-- **Isolation:** every domain row carries `user_id NOT NULL` with an index. All queries filter by `current_user.id`. No row-level security in v1; enforced in the application layer.
-- **Manager view:** `org_memberships(user_id, org_id, role)` where role is one of `{member, manager}`. A manager `GET /api/dashboard?user_id=<report>` succeeds iff the target shares an org and the caller has `role=manager`.
-- **Auth:** session cookie (`HttpOnly`, `Secure`, `SameSite=Lax`), argon2 password hashes, CSRF via double-submit token on state-changing requests.
-- **Sessions:** server-side session table (`id, user_id, created_at, expires_at, revoked_at`) so sessions can be revoked directly.
+The service uses the existing FastAPI application with SQLAlchemy 2.x, Alembic migrations, password authentication, and Postgres for durable persistence. The static SPA remains served from `/static/`.
 
-## 3. Migration from SQLite
+The design keeps Drucker domain logic primary: identity defines whose habit practice is being recorded, ownership protects raw reflection, and manager rollups expose only bounded coaching signals.
 
-A one-shot script `scripts/import_sqlite.py` reads `effective_executive.db`, prompts for an account, and inserts every row under that `user_id`. It is not part of the runtime path.
+## Multi-Tenancy Model
 
-## 4. Open questions
+- **Tenant unit:** `user`.
+- **Domain ownership:** every time entry, contribution, strength, priority, and decision has `user_id NOT NULL` with an index.
+- **Isolation:** all raw domain queries filter by `current_user.id`; cross-user raw reads return `404`.
+- **Org scope:** `orgs` and `org_memberships` exist only to authorize read-only manager rollups.
+- **Manager authorization:** a manager can call `GET /api/dashboard?user_id=<report>` only when caller and target share an org where the caller has `role=manager`.
+- **Writes:** no write endpoint accepts a cross-user override.
 
-- Do we want invite links for org joining, or admin-controlled add? Default: invite links, expiring.
-- Is there ever a global team time-block rollup, or strictly per-user with a manager peek? Default: per-user only in v1.
+## Auth Model
+
+- Passwords are hashed with argon2id.
+- Sessions are server-side rows with `created_at`, `expires_at`, and `revoked_at`.
+- Cookies are `HttpOnly`, `Secure`, and `SameSite=Lax`.
+- State-changing requests require a double-submit CSRF token.
+
+## Migration Model
+
+Schema changes use Alembic. Existing SQLite data can be moved by `scripts/import_sqlite.py`, which inserts old records under a selected account. The import script exists only to preserve prior habit evidence and is not part of normal request handling.
+
+## Open Questions
+
+- Should org joining use expiring invite links or admin-controlled creation?
+- Should future manager views include trend summaries while still hiding raw notes?

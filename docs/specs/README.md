@@ -1,21 +1,67 @@
 # Specs
 
-This directory holds the **current** specification of the system — what is built and shipped today. It is the source of truth that change proposals (in `../changes/`) modify.
+This directory is the source of truth for shipped product behavior. A spec is not a field list or endpoint inventory first. It is a causal argument for why a behavior must exist if the product is to help a knowledge worker become an effective executive.
 
-Specs and changes SHALL be written from first principles. They must make the feature's necessity understandable before describing fields, endpoints, or UI. The reader should be able to see which Drucker habit is served, why the system must intervene, and how the result becomes observable.
+## First-Principles Doctrine
 
-Layout follows [Open Spec](https://github.com/Fission-AI/OpenSpec) conventions:
+Drucker's core claim is that effectiveness is a trained practice, not a personal trait. The product exists to turn that practice into repeated, observable actions for any user whose judgment affects organizational results.
+
+Every capability SHALL be justified from these first principles:
+
+1. Time is the limiting resource. It cannot be stored, replaced, or recovered.
+2. Knowledge work is valuable only through outward contribution, not effort or activity.
+3. People produce results through strengths. Weaknesses are managed by design, not by pretending everyone can be well rounded.
+4. Significant results require concentration. Priority without posteriority is only a wish list.
+5. A decision is not effective until it has action, responsibility, and feedback from reality.
+
+Specs and changes SHALL explain necessity before implementation. The reader should be able to see:
+
+- which Drucker habit is being served;
+- what user behavior must change;
+- what failure mode appears without the feature;
+- what artifact proves the behavior happened;
+- what is intentionally out of scope.
+
+Requirements SHOULD be written as causal contracts:
+
+`Because <constraint/failure mode>, the system SHALL <behavior> so that <observable outcome>.`
+
+## System Loop
+
+The five habits operate as one loop:
+
+1. **Time** creates factual evidence.
+2. **Contributions** turns evidence into an outward result commitment.
+3. **Strengths** determines which person or work mode can produce that result.
+4. **Priorities** concentrates scarce time and attention on a few choices.
+5. **Decisions** turns judgment into assigned action and checked reality.
+6. **Dashboard** exposes breaks in the loop and guides the weekly review.
+
+No capability should optimize for generic productivity, task tracking, or collaboration unless it directly strengthens this loop.
+
+## Spec Writing Standard
+
+Each capability spec SHOULD include:
+
+- **Purpose:** the Drucker habit and organizational result served.
+- **First principles:** the non-negotiable constraints behind the feature.
+- **Core user actions:** the repeated actions the product must make easy.
+- **Requirements:** product contracts and scenarios.
+- **Artifacts:** records, lists, reviews, or dashboard signals proving practice.
+- **Non-goals:** tempting features that would dilute the habit system.
+
+## Layout
 
 ```
 docs/
   specs/
     <capability>/
-      spec.md          # current behaviour, requirements, API
+      spec.md          # current behavior, requirements, API
   changes/
     <change-id>/
-      proposal.md      # why + what
-      tasks.md         # ordered checklist
-      design.md        # optional: trade-offs
+      proposal.md      # first-principles why + what
+      tasks.md         # ordered implementation checklist
+      design.md        # implementation design after necessity is clear
       specs/
         <capability>/
           spec.md      # delta to apply on accept
@@ -34,44 +80,21 @@ docs/
 | `dashboard` | shipped | [dashboard/spec.md](dashboard/spec.md) |
 | `accounts` | shipped | [accounts/spec.md](accounts/spec.md) |
 
-## Product Doctrine
+## Weekly Operating Rhythm
 
-The service is a habit-formation operating system for Drucker's effective executive, not a generic productivity tracker. It SHALL help any knowledge worker whose judgment affects organizational results practice five trainable habits:
+The product SHOULD support a weekly review that can be completed in 15-30 minutes:
 
-1. know where time actually goes;
-2. define contribution in outward, observable results;
-3. place work on strengths instead of idealized roles;
-4. concentrate resources on a few priorities and explicit posteriorities;
-5. convert important judgments into effective decisions with action and feedback.
+1. review actual time and diagnose waste;
+2. delete, delegate, or stop other-wasting work;
+3. confirm the current contribution commitment;
+4. check whether strengths are matched to important work;
+5. reduce priorities to one to three active matters and name posteriorities;
+6. complete decisions with owner, action, and feedback.
 
-The five capabilities SHALL operate as one causal chain. Time evidence feeds contribution clarity; contribution clarity determines priorities; strengths determine who should carry the work; priorities force abandonment; decisions turn judgment into action. The dashboard SHALL surface gaps in that chain instead of merely counting records.
+If a user cannot answer these questions from the system, the specs are incomplete:
 
-## First-Principles Writing Standard
-
-Every capability spec and change proposal SHALL answer these questions before or inside its requirements:
-
-1. What organizational result or Drucker habit does this support?
-2. What user behavior must the product make easier, more accurate, or more repeatable?
-3. What scarce resource or first-principles constraint is being protected? Examples: time cannot be stored, contribution must be observable, strengths are uneven, attention must be concentrated, decisions require action and feedback.
-4. What failure mode occurs without this feature?
-5. What artifact proves the behavior happened? Examples: time inventory, elimination list, contribution definition, strengths map, posteriority list, decision record.
-6. What is out of scope because it would dilute the habit system?
-
-Requirements SHOULD be written as causal contracts:
-
-`Because <constraint/failure mode>, the system SHALL <behavior> so that <observable outcome>.`
-
-Specs SHOULD avoid feature-by-analogy language such as "like a project management app" unless the analogy is explicitly rejected or narrowed. Implementation details belong after the necessity and behavioral contract are clear.
-
-## Primary Workflow
-
-The expected use pattern is weekly:
-
-1. Capture actual time during the week in small factual entries.
-2. Diagnose the captured time: eliminate, delegate, stop wasting others' time, and consolidate usable blocks.
-3. Reconfirm the user's current contribution commitment.
-4. Check whether the next one to three priorities still deserve concentrated resources.
-5. Assign or reshape work around documented strengths.
-6. Review open decisions for owner, deadline, validation, and dissent.
-
-The product SHOULD make this review easy to complete in 15-30 minutes and SHOULD turn every incomplete Drucker habit into a visible next action.
+- Where did my time actually go?
+- What contribution am I responsible for now?
+- Whose strengths are being used or wasted?
+- What am I explicitly not doing?
+- Which decisions still lack action or feedback?

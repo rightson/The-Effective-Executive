@@ -1,62 +1,76 @@
 # Capability: accounts
 
 ## Purpose
-Authenticate users, group them into orgs, and let managers see read-only Drucker habit rollups for coaching. Accounts SHALL protect private journals while allowing limited team visibility into habit health.
+
+Protect each user's Drucker journal while allowing limited organizational visibility for coaching habit practice.
+
+## First Principles
+
+- Honest time and decision diagnosis requires private ownership.
+- Identity is necessary to make habit records attributable, private, and reviewable.
+- Org membership should not imply ownership of another person's records.
+- Manager access should answer habit-health questions, not expose raw activity.
+
+## Core User Actions
+
+1. Sign up and log in.
+2. Maintain a private user-owned journal.
+3. Belong to one or more orgs.
+4. As a manager, view only allowed report dashboard rollups.
+5. Log out and revoke the active session.
 
 ## Requirements
 
 ### Requirement: User registration
-The service SHALL expose `POST /api/auth/signup` accepting `{email, password, display_name}` and create a new user with an argon2 password hash.
+Because each journal needs an owner, `POST /api/auth/signup` SHALL accept `{email, password, display_name}` and create a user with an argon2id password hash.
 
 #### Scenario: Duplicate email
 - **WHEN** the email already exists
-- **THEN** the response is `409` and no row is created.
+- **THEN** the service SHALL return `409` and create no row.
 
 ### Requirement: Password login
-`POST /api/auth/login` SHALL accept `{email, password}`, verify the hash, and set an `HttpOnly; Secure; SameSite=Lax` session cookie.
+Because users need authenticated access across sessions, `POST /api/auth/login` SHALL verify credentials and set an `HttpOnly; Secure; SameSite=Lax` session cookie.
 
 ### Requirement: Logout
-`POST /api/auth/logout` SHALL revoke the current session row and clear the cookie.
+Because sessions must be revocable, `POST /api/auth/logout` SHALL revoke the current session row and clear the cookie.
 
 ### Requirement: Current user
-`GET /api/auth/me` SHALL return the current user's `{id, email, display_name, orgs: [{id, name, role}]}` or `401`.
-
-### Requirement: Identity-owned journal
-Every domain record SHALL belong to exactly one user. Users SHALL NOT see another user's raw domain records through list/get endpoints.
-
-#### Scenario: Cross-user domain lookup
-- **WHEN** user A requests a domain record owned by user B
-- **THEN** the service SHALL return `404` for direct record endpoints to avoid leaking existence.
+Because the SPA and API need user context, `GET /api/auth/me` SHALL return `{id, email, display_name, orgs: [{id, name, role}]}` for the current user or `401`.
 
 ### Requirement: Server-side sessions
-Sessions SHALL be persisted in a `sessions` table with `id, user_id, created_at, expires_at, revoked_at`. Default lifetime: 30 days, sliding.
+Because direct revocation is simpler and safer for this app, sessions SHALL be stored in a `sessions` table with `id, user_id, created_at, expires_at, revoked_at`. Default lifetime SHALL be 30 days, sliding.
 
 ### Requirement: CSRF protection
-State-changing endpoints (`POST/PUT/DELETE`) SHALL require a double-submit CSRF token matching a `csrf` cookie value.
+Because session cookies authenticate browser requests, state-changing endpoints SHALL require a double-submit CSRF token matching the CSRF cookie.
+
+### Requirement: Identity-owned records
+Because private reflection needs clear ownership, every domain record SHALL belong to exactly one user.
+
+#### Scenario: Cross-user domain lookup
+- **WHEN** user A requests a raw domain record owned by user B
+- **THEN** the service SHALL return `404`.
 
 ### Requirement: Orgs and memberships
-The service SHALL store `orgs(id, name)` and `org_memberships(user_id, org_id, role)` where `role ∈ {member, manager}`. A user MAY belong to multiple orgs.
+Because manager coaching needs bounded access, the service SHALL store `orgs(id, name)` and `org_memberships(user_id, org_id, role)` where role is one of `{member, manager}`.
 
-Managers SHALL receive read-only aggregate access only where explicitly allowed by dashboard requirements. Org membership SHALL NOT grant access to another user's create, update, delete, or raw list endpoints.
-
-#### Scenario: Manager dashboard read
-- **WHEN** a manager calls `GET /api/dashboard?user_id=<report>`
-- **AND** caller and target share an org where caller has `role=manager`
-- **THEN** the response is the target's dashboard rollup.
+### Requirement: Manager aggregate access
+Because managers need habit-health visibility but not raw journals, a manager SHALL be able to read a report's dashboard rollup only when both share an org where the caller has `role=manager`.
 
 #### Scenario: Manager write attempt
 - **WHEN** any state-changing endpoint receives `?user_id=<other>`
-- **THEN** the parameter is ignored — writes always target the caller.
+- **THEN** writes SHALL still target the caller.
 
-### Requirement: Coaching, not surveillance
-Manager-facing account features SHALL support Drucker coaching questions, not activity surveillance. The first manager surface is habit rollup visibility, not raw time-entry browsing.
+## Artifacts
 
-#### Scenario: Manager wants detail
-- **WHEN** a manager needs to discuss a user's time or priorities
-- **THEN** the product SHOULD direct the manager to the aggregate gap and let the user decide what raw context to share outside the current v1 surface.
+- user account;
+- session record;
+- org membership;
+- manager report list;
+- read-only dashboard authorization.
 
-### Requirement: Password hashing
-Passwords SHALL be hashed with argon2id, never stored or logged in cleartext.
+## Non-Goals
 
-### Requirement: Account lifecycle
-The system SHOULD eventually support invite links, org join approval, password reset, and account export. Until those exist, their absence SHALL be documented as operational limitations rather than hidden assumptions.
+- raw manager access to another user's journal;
+- SSO in v1;
+- account-linked assignee notifications;
+- collaboration workspace semantics.
