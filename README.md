@@ -20,6 +20,21 @@ Each maps to one of the habits in *The Effective Executive* (1967).
 
 A `/api/dashboard` endpoint rolls these into one view, including how many priorities are flagged for abandonment and how many decisions still have no implementer.
 
+## Specification discipline
+
+Specs and change proposals must be written from first principles. A feature is not justified because another productivity tool has it, because it is technically convenient, or because it sounds useful. It is justified only when the document makes the necessity visible.
+
+Every spec/change should answer:
+
+- What Drucker habit or organizational result does this serve?
+- What user behavior must change for the system to create value?
+- What first-principles constraint makes the feature necessary, such as scarce time, observable contribution, strengths-based placement, concentration, or decision follow-through?
+- What failure mode appears if the feature does not exist?
+- What concrete record, workflow, or dashboard signal proves the habit is being practiced?
+- What is intentionally out of scope so the product does not become a generic task manager?
+
+Write requirements as causal product contracts: because a user needs X outcome under Y constraint, the system shall make Z behavior easy and verifiable.
+
 ## Run
 
 The fastest path uses the bundled `manage.py` helper, which provisions a venv and installs dependencies on first use:
