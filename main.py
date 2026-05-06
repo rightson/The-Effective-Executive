@@ -169,6 +169,19 @@ class UserOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class OrgRoleOut(BaseModel):
+    id: int
+    name: str
+    role: str
+
+
+class MeOut(BaseModel):
+    id: int
+    email: str
+    display_name: str
+    orgs: List[OrgRoleOut] = []
+
+
 class TimeEntryCreate(BaseModel):
     activity: str
     duration_minutes: int
@@ -355,8 +368,14 @@ def current_user(
     if not ee_session:
         raise HTTPException(401, "Not authenticated")
     sess = db.get(SessionDB, ee_session)
-    if not sess or sess.expires_at < datetime.utcnow():
+    now = datetime.utcnow()
+    if not sess or sess.expires_at < now:
         raise HTTPException(401, "Session expired")
+
+    new_expiry = now + timedelta(days=SESSION_TTL_DAYS)
+    if (new_expiry - sess.expires_at) > timedelta(hours=1):
+        sess.expires_at = new_expiry
+        db.commit()
 
     # CSRF: required on state-changing methods.
     if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
@@ -418,9 +437,20 @@ def logout(response: Response, db: Session = Depends(get_db),
     return {"ok": True}
 
 
-@app.get("/api/auth/me", response_model=UserOut)
-def me(user: UserDB = Depends(current_user)):
-    return user
+@app.get("/api/auth/me", response_model=MeOut)
+def me(user: UserDB = Depends(current_user), db: Session = Depends(get_db)):
+    rows = db.execute(
+        select(OrgDB, OrgMembershipDB.role)
+        .join(OrgMembershipDB, OrgMembershipDB.org_id == OrgDB.id)
+        .where(OrgMembershipDB.user_id == user.id)
+        .order_by(OrgDB.name)
+    ).all()
+    return MeOut(
+        id=user.id,
+        email=user.email,
+        display_name=user.display_name,
+        orgs=[OrgRoleOut(id=org.id, name=org.name, role=role) for org, role in rows],
+    )
 
 
 def _start_session(db: Session, user: UserDB, response: Response) -> None:
