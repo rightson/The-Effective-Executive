@@ -14,6 +14,10 @@ from argon2.exceptions import VerifyMismatchError
 import os
 import secrets
 
+from urllib.request import urlopen
+from urllib.parse import urlencode
+import json
+
 # ─── Configuration ────────────────────────────────────────────────────────────
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./effective_executive.db")
@@ -160,6 +164,10 @@ class SignupIn(BaseModel):
 class LoginIn(BaseModel):
     email: EmailStr
     password: str
+
+
+class GoogleLoginIn(BaseModel):
+    id_token: str
 
 
 class UserOut(BaseModel):
@@ -390,6 +398,22 @@ def current_user(
     return user
 
 
+
+def verify_google_id_token(id_token: str) -> dict:
+    params = urlencode({"id_token": id_token})
+    with urlopen(f"https://oauth2.googleapis.com/tokeninfo?{params}", timeout=10) as resp:
+        payload = json.loads(resp.read().decode("utf-8"))
+    aud = payload.get("aud", "")
+    allowed_aud = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+    if allowed_aud and aud != allowed_aud:
+        raise HTTPException(status_code=401, detail="google token audience mismatch")
+    if payload.get("email_verified") not in ("true", True):
+        raise HTTPException(status_code=401, detail="google email not verified")
+    email = payload.get("email")
+    if not email:
+        raise HTTPException(status_code=401, detail="google token missing email")
+    return payload
+
 # ─── Auth endpoints ──────────────────────────────────────────────────────────
 
 @app.post("/api/auth/signup", response_model=UserOut, status_code=201)
@@ -421,6 +445,28 @@ def login(payload: LoginIn, response: Response, db: Session = Depends(get_db)):
     if ph.check_needs_rehash(user.password_hash):
         user.password_hash = ph.hash(payload.password)
         db.commit()
+    _start_session(db, user, response)
+    return user
+
+
+@app.post("/api/auth/google", response_model=UserOut)
+def auth_google(inp: GoogleLoginIn, response: Response, db: Session = Depends(get_db)):
+    try:
+        payload = verify_google_id_token(inp.id_token)
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=401, detail="invalid google token")
+
+    email = payload["email"].lower()
+    user = db.scalar(select(UserDB).where(UserDB.email == email))
+    if not user:
+        display_name = payload.get("name") or email.split("@")[0]
+        sub = payload.get("sub", "")
+        user = UserDB(email=email, display_name=display_name, password_hash=f"!google:{sub}")
+        db.add(user)
+        db.commit()
+        db.refresh(user)
     _start_session(db, user, response)
     return user
 
@@ -799,3 +845,4 @@ def _http_exc_handler(_request: Request, exc: HTTPException):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", "8000")))
+
