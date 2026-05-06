@@ -31,6 +31,7 @@ import subprocess
 import sys
 import venv
 from pathlib import Path
+from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parent
 VENV_DIR = ROOT / ".venv"
@@ -77,6 +78,53 @@ def _exec(args: list[str], extra_env: dict[str, str] | None = None) -> int:
     return subprocess.call(args, env=env, cwd=str(ROOT))
 
 
+
+
+def _ensure_postgres_ready_for_run() -> None:
+    db_url = os.environ.get("DATABASE_URL", "")
+    if not db_url.startswith("postgres"):
+        return
+    try:
+        import psycopg
+    except Exception:
+        return
+
+    parsed = urlparse(db_url)
+    db_name = (parsed.path or "/").lstrip("/") or "effective_executive"
+    user = parsed.username
+    password = parsed.password or ""
+    host = parsed.hostname or "localhost"
+    port = parsed.port or 5432
+
+    admin_url = os.environ.get("POSTGRES_ADMIN_URL", "")
+    if not admin_url:
+        admin_url = f"postgresql://{user}:{password}@{host}:{port}/postgres" if user else f"postgresql://{host}:{port}/postgres"
+
+    def _connect(conn_url: str):
+        return psycopg.connect(conn_url, autocommit=True)
+
+    try:
+        with _connect(admin_url) as conn:
+            with conn.cursor() as cur:
+                if user:
+                    cur.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", (user,))
+                    if cur.fetchone() is None:
+                        cur.execute(f'CREATE ROLE "{user}" LOGIN PASSWORD %s', (password,))
+                cur.execute("SELECT 1 FROM pg_database WHERE datname=%s", (db_name,))
+                if cur.fetchone() is None:
+                    cur.execute(f'CREATE DATABASE "{db_name}" OWNER "{user}"' if user else f'CREATE DATABASE "{db_name}"')
+                if user:
+                    cur.execute(f'GRANT ALL PRIVILEGES ON DATABASE "{db_name}" TO "{user}"')
+    except Exception as exc:
+        if sys.stdin.isatty():
+            print(f"! Postgres bootstrap needs elevated credentials: {exc}", flush=True)
+            entered = input("Enter POSTGRES_ADMIN_URL (or leave blank to continue without bootstrap): ").strip()
+            if entered:
+                os.environ["POSTGRES_ADMIN_URL"] = entered
+                _ensure_postgres_ready_for_run()
+        else:
+            print(f"! Skipping Postgres bootstrap: {exc}", flush=True)
+
 def cmd_setup(_a) -> int:
     ensure_deps(force=True)
     print("✓ Setup complete. Run: python3 manage.py run")
@@ -85,6 +133,7 @@ def cmd_setup(_a) -> int:
 
 def cmd_run(a) -> int:
     ensure_deps()
+    _ensure_postgres_ready_for_run()
     port = str(a.port)
     args = [str(_python()), "-m", "uvicorn", "main:app",
             "--host", a.host, "--port", port]

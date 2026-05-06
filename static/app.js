@@ -120,6 +120,9 @@ const auth = {
                 <input type="password" name="password" required minlength="8" autocomplete="${mode === 'signup' ? 'new-password' : 'current-password'}" /></div>
             </div>
             <div id="auth-error" class="callout callout-warning hidden"></div>
+            <div id="google-wrap" class="form-actions" style="justify-content:flex-start">
+              <button type="button" class="btn btn-ghost" id="google-login">Continue with Google</button>
+            </div>
             <div class="form-actions">
               <button type="button" class="btn btn-ghost" id="auth-toggle">${mode === 'signup' ? 'Have an account? Log in' : 'New here? Sign up'}</button>
               <button type="submit" class="btn btn-primary">${mode === 'signup' ? 'Sign up' : 'Log in'}</button>
@@ -129,7 +132,23 @@ const auth = {
       </div>`;
     this.renderNav();
     document.getElementById('auth-toggle').onclick = () => this.renderLogin(mode === 'signup' ? 'login' : 'signup');
-    document.getElementById('auth-form').onsubmit = async (e) => {
+        const googleBtn = document.getElementById('google-login');
+    if (googleBtn) googleBtn.onclick = async () => {
+      const token = prompt('Paste Google ID token');
+      if (!token) return;
+      const errBox = document.getElementById('auth-error');
+      errBox.classList.add('hidden');
+      try {
+        await api.post('/api/auth/google', { id_token: token.trim() });
+        await auth.loadMe();
+        auth.renderNav();
+        app.activate('dashboard');
+      } catch (err) {
+        errBox.textContent = err.message || 'Google login failed';
+        errBox.classList.remove('hidden');
+      }
+    };
+document.getElementById('auth-form').onsubmit = async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
       const body = { email: fd.get('email'), password: fd.get('password') };
