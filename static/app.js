@@ -93,9 +93,12 @@ const auth = {
     const el = document.getElementById('nav-user');
     if (!el) return;
     if (!this.user) { el.innerHTML = ''; return; }
+    const isAdmin = this.user.role === 'admin' || this.user.is_admin;
     el.innerHTML = `
       <span class="nav-user-name">${esc(this.user.display_name || this.user.email)}</span>
-      <button class="btn btn-ghost btn-xs" id="nav-logout">Log out</button>`;
+      ${isAdmin ? '<span class="nav-user-badge">⚙ Admin</span>' : ''}
+      <span class="nav-user-mark" aria-hidden="true">中</span>
+      <button class="btn btn-ghost btn-xs" id="nav-logout">Sign out</button>`;
     document.getElementById('nav-logout').onclick = async () => {
       try { await api.post('/api/auth/logout', {}); } catch (_) {}
       auth.user = null;
@@ -107,25 +110,26 @@ const auth = {
     document.getElementById('main').innerHTML = `
       <div class="auth-wrap">
         <div class="auth-card">
-          <div class="section-title">${mode === 'signup' ? 'Create account' : 'Log in'}</div>
-          <div class="section-subtitle">${mode === 'signup' ? 'Start your Drucker journal.' : 'Welcome back.'}</div>
+          <span class="auth-mark" aria-hidden="true">中</span>
+          <div class="auth-title">The Effective Executive</div>
+          <div class="auth-subtitle">The Definitive Guide to Getting the Right Things Done</div>
           <form id="auth-form">
             <div class="form-grid cols-1">
               ${mode === 'signup' ? `
                 <div class="form-group"><label>Display name</label>
-                  <input type="text" name="display_name" placeholder="optional" /></div>` : ''}
-              <div class="form-group"><label>Email</label>
+                  <input type="text" name="display_name" placeholder="Optional" /></div>` : ''}
+              <div class="form-group"><label>${mode === 'signup' ? 'Email' : 'Username'}</label>
                 <input type="email" name="email" required autocomplete="email" /></div>
               <div class="form-group"><label>Password</label>
                 <input type="password" name="password" required minlength="8" autocomplete="${mode === 'signup' ? 'new-password' : 'current-password'}" /></div>
             </div>
             <div id="auth-error" class="callout callout-warning hidden"></div>
-            <div id="google-wrap" class="form-actions" style="justify-content:flex-start">
-              <button type="button" class="btn btn-ghost" id="google-login">Continue with Google</button>
+            <div class="form-actions" style="margin-top:20px">
+              <button type="submit" class="btn btn-primary btn-block">${mode === 'signup' ? 'Sign up' : 'Sign in'}</button>
             </div>
-            <div class="form-actions">
-              <button type="button" class="btn btn-ghost" id="auth-toggle">${mode === 'signup' ? 'Have an account? Log in' : 'New here? Sign up'}</button>
-              <button type="submit" class="btn btn-primary">${mode === 'signup' ? 'Sign up' : 'Log in'}</button>
+            <div class="form-actions-row">
+              <button type="button" class="btn btn-ghost btn-sm" id="google-login">Continue with Google</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="auth-toggle">${mode === 'signup' ? 'Have an account? Log in' : 'New here? Sign up'}</button>
             </div>
           </form>
         </div>
@@ -170,8 +174,6 @@ document.getElementById('auth-form').onsubmit = async (e) => {
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
-let chartInstance = null;
-
 const dashboard = {
   viewingUserId: null,
 
@@ -183,8 +185,6 @@ const dashboard = {
   },
 
   render(d) {
-    const warnClass = (n) => n > 0 ? '' : 'ok';
-
     const picker = (auth.members && auth.members.length) ? `
       <div class="dashboard-picker">
         <label>Viewing</label>
@@ -194,94 +194,138 @@ const dashboard = {
         </select>
       </div>` : '';
 
-    const heading = d.is_self ? 'Dashboard' : `Dashboard — ${esc(d.user.display_name || d.user.email)}`;
+    const today = new Date();
+    const iso = today.toISOString().slice(0, 10);
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    const weekIso = weekStart.toISOString().slice(0, 10);
+
+    const diagnosed = Math.max(0, (d.time.total_entries || 0) - (d.time.undiagnosed || 0));
+
     document.getElementById('main').innerHTML = `
-      <div class="section-header">
-        <div>
-          <div class="section-title">${heading}</div>
-          <div class="section-subtitle">Drucker's five habits at a glance${d.is_self ? '' : ' (read-only)'}</div>
-        </div>
-        ${picker}
-      </div>
+      ${!d.is_self ? `<div class="callout callout-info">Viewing ${esc(d.user.display_name || d.user.email)}'s dashboard (read-only)</div>` : ''}
+      ${picker ? `<div class="section-header"><div></div>${picker}</div>` : ''}
 
-      <div class="stats-grid">
-        <div class="stat-card accent-time">
-          <div class="card-title">I. Time</div>
-          <div class="stat-value">${d.time.total_hours}</div>
-          <div class="stat-label">hours logged</div>
-          ${d.time.undiagnosed > 0 ? `<div class="stat-sub">${d.time.undiagnosed} entries undiagnosed</div>` : `<div class="stat-sub ok">All entries diagnosed</div>`}
-        </div>
-        <div class="stat-card accent-contrib">
-          <div class="card-title">II. Contributions</div>
-          <div class="stat-value">${d.contributions.active}</div>
-          <div class="stat-label">active contributions</div>
-          <div class="stat-sub ok">${d.contributions.completed} completed</div>
-        </div>
-        <div class="stat-card accent-priority">
-          <div class="card-title">IV. Priorities</div>
-          <div class="stat-value">${d.priorities.active}</div>
-          <div class="stat-label">active priorities</div>
-          ${d.priorities.to_abandon > 0 ? `<div class="stat-sub">${d.priorities.to_abandon} candidates for abandonment</div>` : `<div class="stat-sub ok">No abandonment candidates</div>`}
-        </div>
-        <div class="stat-card accent-decision">
-          <div class="card-title">V. Decisions</div>
-          <div class="stat-value">${d.decisions.open}</div>
-          <div class="stat-label">open decisions</div>
-          <div class="stat-sub ok">${d.decisions.implemented} implemented</div>
-        </div>
-      </div>
+      <section class="hero-quote">
+        <div class="hero-eyebrow">Core Premise</div>
+        <h1 class="hero-title">Effectiveness is doing the right things — <em>and it can be learned.</em></h1>
+        <div class="hero-attr">— Peter F. Drucker, The Effective Executive</div>
+        <p class="hero-body">Effectiveness is not doing things right (that is efficiency); it is doing the right things. The output of a knowledge worker is not measured by the hours put in, but by the contribution made to results outside the organization. This platform helps you build the five habits Drucker identified as learnable.</p>
+      </section>
 
-      <div class="dashboard-grid">
-        <div class="card">
-          <div class="card-title" style="padding:20px 20px 0">Time by Category</div>
-          <div class="chart-wrap">
-            <canvas id="time-chart"></canvas>
+      <section class="glance">
+        <div class="glance-header">
+          <h2>Today at a glance</h2>
+          <div class="glance-date">${iso} · Week of ${weekIso}</div>
+        </div>
+        <div class="glance-grid">
+          <div class="metric">
+            <div class="metric-label"><span class="dot blue"></span>Time logged</div>
+            <div class="metric-value">${d.time.total_hours}h</div>
+            <div class="metric-sub">${d.time.total_entries} ${d.time.total_entries === 1 ? 'entry' : 'entries'}</div>
+          </div>
+          <div class="metric ${d.time.undiagnosed > 0 ? 'tinted' : ''}">
+            <div class="metric-label"><span class="dot amber"></span>Unjudged time</div>
+            <div class="metric-value">${d.time.undiagnosed}</div>
+            <div class="metric-sub ${d.time.undiagnosed > 0 ? 'warn' : 'ok'}">${d.time.undiagnosed > 0 ? 'Resolve in weekly review' : `${diagnosed} diagnosed`}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label"><span class="dot green"></span>Active contributions</div>
+            <div class="metric-value">${d.contributions.active}</div>
+            <div class="metric-sub ok">${d.contributions.completed} completed</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label"><span class="dot cyan"></span>Active priorities</div>
+            <div class="metric-value">${d.priorities.active}</div>
+            <div class="metric-sub">First things first</div>
+          </div>
+          <div class="metric ${d.priorities.to_abandon > 0 ? 'tinted' : ''}">
+            <div class="metric-label"><span class="dot red"></span>Stop-doing candidates</div>
+            <div class="metric-value">${d.priorities.to_abandon}</div>
+            <div class="metric-sub ${d.priorities.to_abandon > 0 ? 'warn' : 'ok'}">${d.priorities.to_abandon > 0 ? 'Review for abandonment' : 'Nothing flagged'}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label"><span class="dot purple"></span>Open decisions</div>
+            <div class="metric-value">${d.decisions.open}</div>
+            <div class="metric-sub">${d.decisions.implemented} implemented</div>
           </div>
         </div>
-        <div class="card card-body">
-          <div class="card-title">Action Items</div>
-          <div id="action-items"></div>
+      </section>
+
+      <section class="quick-links">
+        <h2>Quick links</h2>
+        <div class="pill-row">
+          <button class="pill" onclick="app.navigate('time')"><span class="pill-icon">⏰</span> Today's time log</button>
+          <button class="pill" onclick="app.navigate('contributions')"><span class="pill-icon">🎯</span> My contributions</button>
+          <button class="pill" onclick="app.navigate('strengths')"><span class="pill-icon">💪</span> My strengths</button>
+          <button class="pill" onclick="app.navigate('priorities')"><span class="pill-icon">🛑</span> Stop-doing list</button>
+          <button class="pill" onclick="app.navigate('decisions')"><span class="pill-icon">⚖️</span> My decisions</button>
         </div>
-      </div>
+      </section>
+
+      <section class="habits">
+        <h2>The five habits</h2>
+        <div class="habits-grid">
+          <article class="habit-card" onclick="app.navigate('time')">
+            <div class="habit-icon icon-time">⏰</div>
+            <div class="habit-body">
+              <div class="habit-eyebrow">Habit 1 <strong>Know thy time</strong></div>
+              <div class="habit-flow">Record → Manage → Consolidate</div>
+              <p class="habit-text">Effective executives do not start with their tasks; they start with their time. They first find out where their time actually goes, then manage it, then consolidate the discretionary time into the largest possible continuing units.</p>
+              <span class="habit-cta">Open →</span>
+            </div>
+          </article>
+          <article class="habit-card" onclick="app.navigate('contributions')">
+            <div class="habit-icon icon-contrib">🎯</div>
+            <div class="habit-body">
+              <div class="habit-eyebrow">Habit 2 <strong>What can I contribute?</strong></div>
+              <div class="habit-flow">Focusing on contribution</div>
+              <p class="habit-text">Effective executives focus on outward contribution. They gear their efforts to results rather than to work. They ask, "What can I contribute that will significantly affect the performance and results of the institution I serve?"</p>
+              <span class="habit-cta">Open →</span>
+            </div>
+          </article>
+          <article class="habit-card" onclick="app.navigate('strengths')">
+            <div class="habit-icon icon-strength">💪</div>
+            <div class="habit-body">
+              <div class="habit-eyebrow">Habit 3 <strong>Making strengths productive</strong></div>
+              <div class="habit-flow">Build on strength, not on weakness</div>
+              <p class="habit-text">Effective executives build on strengths — their own strengths, the strengths of their superiors, colleagues, and subordinates. They never ask "How does he get along with me?" They ask "What does he contribute?"</p>
+              <span class="habit-cta">Open →</span>
+            </div>
+          </article>
+          <article class="habit-card" onclick="app.navigate('priorities')">
+            <div class="habit-icon icon-priority">🔴</div>
+            <div class="habit-body">
+              <div class="habit-eyebrow">Habit 4 <strong>First things first</strong></div>
+              <div class="habit-flow">Concentration and abandonment</div>
+              <p class="habit-text">Effective executives concentrate on the few major areas where superior performance will produce outstanding results. Setting posteriorities — deciding what not to tackle — matters more than setting priorities. Ask of every activity: if we were not already doing this, would we go into it now?</p>
+              <span class="habit-cta">Open →</span>
+            </div>
+          </article>
+          <article class="habit-card" onclick="app.navigate('decisions')">
+            <div class="habit-icon icon-decision">⚖️</div>
+            <div class="habit-body">
+              <div class="habit-eyebrow">Habit 5 <strong>Effective decision-making</strong></div>
+              <div class="habit-flow">Judgment, not consensus</div>
+              <p class="habit-text">Effective executives make a few important decisions rather than many small ones. They focus on the highest level of conceptual understanding, work out what is right rather than what is acceptable, and build dissent into the process before reaching a verdict.</p>
+              <span class="habit-cta">Open →</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="quick-links" style="margin-top:32px">
+        <h2>Action items</h2>
+        <div id="action-items"></div>
+      </section>
     `;
 
-    this.renderChart(d.time.by_category);
     this.renderActions(d);
     const sel = document.getElementById('dashboard-user');
     if (sel) sel.onchange = () => {
       dashboard.viewingUserId = sel.value ? parseInt(sel.value) : null;
       dashboard.load();
     };
-  },
-
-  renderChart(by_cat) {
-    if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
-    const canvas = document.getElementById('time-chart');
-    if (!canvas || !Object.keys(by_cat).length) {
-      if (canvas) canvas.parentElement.innerHTML += '<div class="empty"><div class="empty-sub">No time data yet</div></div>';
-      return;
-    }
-
-    const colorMap = {
-      deep_work: '#4f46e5', meeting: '#2563eb', admin: '#64748b',
-      communication: '#0891b2', waste: '#dc2626', uncategorized: '#94a3b8',
-    };
-    const labels = Object.keys(by_cat);
-    const data   = labels.map(k => by_cat[k]);
-    const colors = labels.map(k => colorMap[k] || '#94a3b8');
-
-    chartInstance = new Chart(canvas, {
-      type: 'doughnut',
-      data: { labels: labels.map(l => l.replace(/_/g,' ')), datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 12 } },
-          tooltip: { callbacks: { label: (ctx) => ` ${fmtMins(ctx.raw)}` } },
-        },
-      },
-    });
   },
 
   renderActions(d) {
@@ -309,7 +353,9 @@ const time = {
     document.getElementById('main').innerHTML = `
       <div class="section-header">
         <div>
-          <div class="section-title">I. Know Thy Time</div>
+          <div class="section-eyebrow">Habit 1 · Know thy time</div>
+          <div class="section-title"><span class="emoji">⏰</span>Time</div>
+          <div class="section-flow">Record → Manage → Consolidate</div>
           <div class="section-subtitle">Record time immediately — memory deceives. Then diagnose each entry with Drucker's three questions.</div>
         </div>
       </div>
@@ -503,7 +549,9 @@ const contributions = {
     document.getElementById('main').innerHTML = `
       <div class="section-header">
         <div>
-          <div class="section-title">II. What Can I Contribute?</div>
+          <div class="section-eyebrow">Habit 2 · What can I contribute?</div>
+          <div class="section-title"><span class="emoji">🎯</span>Contributions</div>
+          <div class="section-flow">Focusing on contribution</div>
           <div class="section-subtitle">Before any activity, ask: what observable difference will this make for the organisation? Write it down — if you can't, don't do it.</div>
         </div>
       </div>
@@ -680,10 +728,12 @@ const strengths = {
     document.getElementById('main').innerHTML = `
       <div class="section-header">
         <div>
-          <div class="section-title">III. Build on Strengths</div>
+          <div class="section-eyebrow">Habit 3 · Making strengths productive</div>
+          <div class="section-title"><span class="emoji">💪</span>Strengths</div>
+          <div class="section-flow">Build on strength, not on weakness</div>
           <div class="section-subtitle">Only ask "what can they do?" — never start with limitations. Make strength productive, weakness irrelevant.</div>
         </div>
-        <button class="btn btn-primary" onclick="strengths.showAddModal()">+ Add Strength</button>
+        <button class="btn btn-primary" onclick="strengths.showAddModal()">+ Add strength</button>
       </div>
       ${this.renderGrid(items)}
     `;
@@ -698,7 +748,7 @@ const strengths = {
 
     return Object.entries(byOwner).map(([owner, group]) => `
       <div style="margin-bottom:24px">
-        <div style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">${esc(owner === 'self' ? 'My Strengths' : owner)}</div>
+        <div class="subhead">${esc(owner === 'self' ? 'My strengths' : owner)}</div>
         <div class="strength-grid">
           ${group.map(s => this.renderCard(s)).join('')}
         </div>
@@ -795,12 +845,14 @@ const priorities = {
     document.getElementById('main').innerHTML = `
       <div class="section-header">
         <div>
-          <div class="section-title">IV. First Things First</div>
+          <div class="section-eyebrow">Habit 4 · First things first</div>
+          <div class="section-title"><span class="emoji">🔴</span>Priorities</div>
+          <div class="section-flow">Concentration and abandonment</div>
           <div class="section-subtitle">One task at a time. Courage to abandon the past. The question is never what to prioritise — it's what to stop.</div>
         </div>
         <div style="display:flex;gap:8px">
-          ${reviewNeeded.length ? `<button class="btn btn-warning" onclick="priorities.abandonmentReview(${JSON.stringify(reviewNeeded.map(p=>p.id))})">⚠ Review ${reviewNeeded.length} Abandonment Candidate${reviewNeeded.length>1?'s':''}</button>` : ''}
-          <button class="btn btn-primary" onclick="priorities.showAddModal()">+ Add Priority</button>
+          ${reviewNeeded.length ? `<button class="btn btn-warning" onclick="priorities.abandonmentReview(${JSON.stringify(reviewNeeded.map(p=>p.id))})">⚠ Review ${reviewNeeded.length} abandonment candidate${reviewNeeded.length>1?'s':''}</button>` : ''}
+          <button class="btn btn-primary" onclick="priorities.showAddModal()">+ Add priority</button>
         </div>
       </div>
       ${this.renderAddPanel()}
@@ -879,11 +931,11 @@ const priorities = {
     }).join('');
 
     return `
-      <div style="margin-bottom:20px">
-        <div style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">${esc(title)}</div>
+      <div style="margin-bottom:24px">
+        <div class="subhead">${esc(title)}</div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Priority</th><th>Drucker Criteria</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Priority</th><th>Drucker criteria</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>
@@ -993,10 +1045,12 @@ const decisions = {
     document.getElementById('main').innerHTML = `
       <div class="section-header">
         <div>
-          <div class="section-title">V. Effective Decisions</div>
+          <div class="section-eyebrow">Habit 5 · Effective decision-making</div>
+          <div class="section-title"><span class="emoji">⚖️</span>Decisions</div>
+          <div class="section-flow">Judgment, not consensus</div>
           <div class="section-subtitle">Decisions require dissent, not consensus. Start with what's right — then compromise. Generic problems need rules; unique events need judgement.</div>
         </div>
-        <button class="btn btn-primary" onclick="decisions.showAddModal()">+ New Decision</button>
+        <button class="btn btn-primary" onclick="decisions.showAddModal()">+ New decision</button>
       </div>
       ${this.renderTable(items)}
     `;
@@ -1230,7 +1284,7 @@ const app = {
   },
 
   async init() {
-    document.querySelectorAll('.nav-link').forEach(a => {
+    document.querySelectorAll('.nav-link, .nav-brand[data-section]').forEach(a => {
       a.addEventListener('click', (e) => {
         e.preventDefault();
         this.navigate(a.dataset.section);
