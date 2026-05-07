@@ -760,8 +760,21 @@ tr:hover td { background: var(--surface-soft); }
 }
 .auth-card .form-actions { justify-content: flex-end; flex-wrap: wrap; }
 .auth-card .form-actions-row {
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex; justify-content: flex-end; align-items: center;
   margin-top: 8px; flex-wrap: wrap; gap: 10px;
+}
+
+.auth-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 18px 0 12px; color: var(--muted);
+  font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+}
+.auth-divider::before, .auth-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+.google-signin-slot {
+  display: flex; justify-content: center;
+  margin: 0 0 4px;
 }
 
 .hidden { display: none !important; }

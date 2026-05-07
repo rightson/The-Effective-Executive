@@ -832,6 +832,12 @@ os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
+@app.get("/api/config")
+def public_config():
+    client_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+    return {"google_client_id": client_id or None}
+
+
 @app.get("/")
 def index():
     return FileResponse("static/index.html")

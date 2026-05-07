@@ -43,6 +43,27 @@ Because direct revocation is simpler and safer for this app, sessions SHALL be s
 ### Requirement: CSRF protection
 Because session cookies authenticate browser requests, state-changing endpoints SHALL require a double-submit CSRF token matching the CSRF cookie.
 
+### Requirement: Google sign-in via Google Identity Services
+Because asking a user to paste an ID token is not a real sign-in, the SPA SHALL initiate Google sign-in through the Google Identity Services client (`https://accounts.google.com/gsi/client`) and SHALL NOT prompt the user for any credential string. On a successful Google response, the SPA SHALL POST the returned `credential` (ID token) to `POST /api/auth/google`, which SHALL verify `aud` against `GOOGLE_CLIENT_ID`, require `email_verified=true`, and start a session.
+
+#### Scenario: First-time Google user
+- **WHEN** the verified Google email does not match an existing user
+- **THEN** the service SHALL create a new user keyed on that email, set `display_name` from the Google profile, and start a session.
+
+#### Scenario: Returning Google user
+- **WHEN** the verified Google email matches an existing user
+- **THEN** the service SHALL resume that user's account and start a session — no second account is created.
+
+#### Scenario: Unverified Google email
+- **WHEN** the Google `email_verified` claim is not true
+- **THEN** the service SHALL reject the sign-in with `401`.
+
+### Requirement: Conditional Google button rendering
+Because a sign-in button that does nothing is worse than no button, the SPA SHALL render the Google sign-in button only when the deployment exposes a non-empty `google_client_id` via `GET /api/config`, and SHALL hide it otherwise.
+
+### Requirement: Public configuration endpoint
+Because the SPA must know whether Google sign-in is available without leaking secrets, `GET /api/config` SHALL return `{google_client_id: string | null}`. It SHALL NOT require authentication and SHALL NOT return any server-side secret.
+
 ### Requirement: Identity-owned records
 Because private reflection needs clear ownership, every domain record SHALL belong to exactly one user.
 
@@ -71,6 +92,7 @@ Because managers need habit-health visibility but not raw journals, a manager SH
 ## Non-Goals
 
 - raw manager access to another user's journal;
-- SSO in v1;
 - account-linked assignee notifications;
-- collaboration workspace semantics.
+- collaboration workspace semantics;
+- SSO providers other than Google (Microsoft, GitHub, Apple, etc.);
+- linking and unlinking Google to an existing password account through a UI affordance — Google sign-in matches existing accounts by verified email automatically.

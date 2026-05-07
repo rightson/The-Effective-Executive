@@ -85,10 +85,29 @@ Password auth (argon2) with session cookies. Sign-up is open; first user becomes
 |---|---|
 | `POST /api/auth/signup` | Create account; returns user, sets session + CSRF cookies |
 | `POST /api/auth/login` | Log in; sets session + CSRF cookies |
+| `POST /api/auth/google` | Verify a Google ID token; create or resume the user, set session |
 | `POST /api/auth/logout` | Clear session |
 | `GET /api/auth/me` | Current user |
+| `GET /api/config` | Public config (e.g. `{google_client_id}`) so the SPA knows whether to show the Google button |
 
 State-changing requests must echo the `ee_csrf` cookie back in the `X-CSRF-Token` header. The bundled SPA does this automatically.
+
+### Sign in with Google
+
+The login screen renders a Google sign-in button when `GOOGLE_CLIENT_ID` is set. Clicking it opens the standard Google account chooser, returns a verified ID token to the SPA, and the SPA POSTs it to `/api/auth/google`. A first-time email is provisioned automatically; a returning email resumes the existing user.
+
+To enable it for a deployment:
+
+1. In Google Cloud Console → APIs & Services → Credentials, create an **OAuth 2.0 Client ID** of type **Web application**.
+2. Under **Authorized JavaScript origins**, add the URL the SPA is served from (e.g. `http://localhost:8000` for dev, plus your production origin).
+3. Copy the client ID and run the server with it in the environment:
+
+   ```
+   export GOOGLE_CLIENT_ID=<your-client-id>.apps.googleusercontent.com
+   python3 manage.py run
+   ```
+
+If `GOOGLE_CLIENT_ID` is unset, the Google button stays hidden and password sign-in continues to work. No client secret is required — the SPA never sees one and the server only verifies the ID token's signature, audience, and `email_verified` claim.
 
 ## Accounts / coaching view
 

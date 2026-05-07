@@ -69,6 +69,25 @@ document.getElementById('modal-overlay').addEventListener('click', e => {
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
+let _publicConfigPromise = null;
+function loadPublicConfig() {
+  if (!_publicConfigPromise) {
+    _publicConfigPromise = api.get('/api/config').catch(() => ({ google_client_id: null }));
+  }
+  return _publicConfigPromise;
+}
+
+function waitForGoogleClient(timeoutMs = 6000) {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    (function poll() {
+      if (window.google && window.google.accounts && window.google.accounts.id) return resolve(window.google);
+      if (Date.now() - start > timeoutMs) return reject(new Error('Google sign-in client did not load'));
+      setTimeout(poll, 50);
+    })();
+  });
+}
+
 const auth = {
   user: null,
   members: [],
@@ -127,8 +146,9 @@ const auth = {
             <div class="form-actions" style="margin-top:20px">
               <button type="submit" class="btn btn-primary btn-block">${mode === 'signup' ? 'Sign up' : 'Sign in'}</button>
             </div>
+            <div class="auth-divider hidden" id="auth-divider"><span>or</span></div>
+            <div id="google-signin-slot" class="google-signin-slot hidden"></div>
             <div class="form-actions-row">
-              <button type="button" class="btn btn-ghost btn-sm" id="google-login">Continue with Google</button>
               <button type="button" class="btn btn-ghost btn-sm" id="auth-toggle">${mode === 'signup' ? 'Have an account? Log in' : 'New here? Sign up'}</button>
             </div>
           </form>
@@ -136,23 +156,8 @@ const auth = {
       </div>`;
     this.renderNav();
     document.getElementById('auth-toggle').onclick = () => this.renderLogin(mode === 'signup' ? 'login' : 'signup');
-        const googleBtn = document.getElementById('google-login');
-    if (googleBtn) googleBtn.onclick = async () => {
-      const token = prompt('Paste Google ID token');
-      if (!token) return;
-      const errBox = document.getElementById('auth-error');
-      errBox.classList.add('hidden');
-      try {
-        await api.post('/api/auth/google', { id_token: token.trim() });
-        await auth.loadMe();
-        auth.renderNav();
-        app.activate('dashboard');
-      } catch (err) {
-        errBox.textContent = err.message || 'Google login failed';
-        errBox.classList.remove('hidden');
-      }
-    };
-document.getElementById('auth-form').onsubmit = async (e) => {
+    auth.mountGoogleButton(mode);
+    document.getElementById('auth-form').onsubmit = async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
       const body = { email: fd.get('email'), password: fd.get('password') };
@@ -169,6 +174,48 @@ document.getElementById('auth-form').onsubmit = async (e) => {
         errBox.classList.remove('hidden');
       }
     };
+  },
+
+  async mountGoogleButton(mode) {
+    const slot = document.getElementById('google-signin-slot');
+    const divider = document.getElementById('auth-divider');
+    if (!slot) return;
+    let cfg;
+    try { cfg = await loadPublicConfig(); } catch (_) { return; }
+    if (!cfg || !cfg.google_client_id) return;
+    let google;
+    try { google = await waitForGoogleClient(); } catch (_) { return; }
+    if (!document.body.contains(slot)) return;
+
+    google.accounts.id.initialize({
+      client_id: cfg.google_client_id,
+      callback: async ({ credential }) => {
+        if (!credential) return;
+        const errBox = document.getElementById('auth-error');
+        if (errBox) errBox.classList.add('hidden');
+        try {
+          await api.post('/api/auth/google', { id_token: credential });
+          await auth.loadMe();
+          auth.renderNav();
+          app.activate('dashboard');
+        } catch (err) {
+          if (errBox) {
+            errBox.textContent = err.message || 'Google sign-in failed';
+            errBox.classList.remove('hidden');
+          }
+        }
+      },
+    });
+    google.accounts.id.renderButton(slot, {
+      theme: 'outline',
+      size: 'large',
+      width: 320,
+      text: mode === 'signup' ? 'signup_with' : 'signin_with',
+      shape: 'rectangular',
+      logo_alignment: 'left',
+    });
+    slot.classList.remove('hidden');
+    if (divider) divider.classList.remove('hidden');
   },
 };
 
